@@ -157,3 +157,55 @@ test('executor streams events verbatim and maps request options', async () => {
     await server.close()
   }
 })
+
+test('executor streamText delivers deltas before the terminal boundary', async () => {
+  // 评审回归：streamText 曾把 executeGrokRequest 的完整缓冲结果一次性转发，
+  // 消费者在终态前看不到任何事件。此处服务器门控在 delta 之后，验证增量性。
+  const release = { promise: Promise.withResolvers<void>() }
+  const server = http.createServer((req, res) => {
+    let raw = ''
+    req.on('data', chunk => { raw += String(chunk) })
+    req.on('end', () => {
+      void JSON.parse(raw)
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.write(`data: ${JSON.stringify({ type: 'response.output_item.added', output_index: 0, item: { type: 'message', role: 'assistant', id: 'msg_i' } })}\n\n`)
+      res.write(`data: ${JSON.stringify({ type: 'response.output_text.delta', output_index: 0, item_id: 'msg_i', delta: 'early' })}\n\n`)
+      void release.promise.promise.then(() => {
+        res.write(`data: ${JSON.stringify({ type: 'response.completed', response: { id: 'resp_i', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'early' }] }] } })}\n\n`)
+        res.write('data: [DONE]\n\n')
+        res.end()
+      })
+    })
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const { port } = server.address() as AddressInfo
+  try {
+    const executor = createGrokModelExecutorCore(
+      {
+        apiKey: 'test-key',
+        baseURL: `http://127.0.0.1:${port}`,
+        model: 'grok-4.6',
+        transport: createGrokHttpTransport({}),
+      },
+    )
+    const seen: string[] = []
+    const firstDelta = Promise.withResolvers<void>()
+    const consumed = (async () => {
+      for await (const event of executor.streamText({ messages: [{ role: 'user', content: 'hello' }] })) {
+        seen.push(event.type)
+        if (event.type === 'text_delta') firstDelta.resolve()
+        if (event.type === 'finish') return
+      }
+    })()
+    const guard = setTimeout(() => firstDelta.reject(new Error('stream buffered until terminal')), 2_000)
+    guard.unref()
+    await firstDelta.promise
+    clearTimeout(guard)
+    release.promise.resolve()
+    await consumed
+    assert.ok(seen.includes('finish'))
+  } finally {
+    release.promise.resolve()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+  }
+})

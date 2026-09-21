@@ -18,14 +18,14 @@
  * 策略，本层未实现。
  */
 
-import { translateGrokResponses } from './grok-stream.ts'
-import type { GrokStreamEvent } from './grok-stream.ts'
-import { buildGrokResponsesRequestBody, GrokWireError, parseGrokSse } from './grok-wire.ts'
-import type { GrokHostedToolSpec, GrokWireInputItem, GrokWireRequest } from './grok-wire.ts'
-import { historyHasImages, serializeGrokMessages, serializeGrokTools } from './grok-serialize.ts'
-import type { GrokFunctionToolSpec, GrokHistoryMessage } from './grok-serialize.ts'
-import { createGrokHttpTransport } from './grok-http.ts'
-import type { GrokHttpTransport } from './grok-http.ts'
+import { translateGrokResponses } from './grok-stream.js'
+import type { GrokStreamEvent } from './grok-stream.js'
+import { buildGrokResponsesRequestBody, GrokWireError, parseGrokSse } from './grok-wire.js'
+import type { GrokHostedToolSpec, GrokWireInputItem, GrokWireRequest } from './grok-wire.js'
+import { historyHasImages, serializeGrokMessages, serializeGrokTools } from './grok-serialize.js'
+import type { GrokFunctionToolSpec, GrokHistoryMessage } from './grok-serialize.js'
+import { createGrokHttpTransport, isGrokTransportError } from './grok-http.js'
+import type { GrokHttpTransport } from './grok-http.js'
 
 /**
  * 原版 retry.rs 常量（对账第 1 项裁决后的口径）。
@@ -56,6 +56,8 @@ export interface GrokAdapterConfig {
   /** Responses 根地址，默认 `https://api.x.ai/v1`。 */
   readonly baseURL?: string
   readonly model: string
+  /** 当前路由的 provider id；同源历史消息凭它读取 replay 元数据。 */
+  readonly providerId?: string
   /** 追加请求头（不得覆盖协议身份头）。 */
   readonly headers?: Readonly<Record<string, string>>
   readonly reasoningEffort?: string
@@ -95,6 +97,30 @@ export interface GrokAttemptDiagnostic {
 export interface GrokExecutionResult {
   readonly events: readonly GrokStreamEvent[]
   readonly attempts: readonly GrokAttemptDiagnostic[]
+}
+
+/** 流式执行的增量下发控制（retry_only_before_output 守卫的输入）。 */
+export interface GrokStreamCallbacks {
+  /** 每个事件产生时同步回调（含 finish；缓冲路径不传）。 */
+  readonly onEvent?: (event: GrokStreamEvent) => void
+  /**
+   * 是否已有输出下发到外部消费者（`start` 不计——会话层幂等）。
+   * 返回 true 后任何失败都不再静默重试，直接浮出（Rust 原版会话层
+   * `retry_only_before_output` 语义：已下发的内容无法收回重采样）。
+   */
+  readonly outputDelivered?: () => boolean
+}
+
+/** 任意失败 → 带稳定码位的 GrokWireError；网络相非 wire 错误统一 TRANSPORT。 */
+function asGrokWireFailure(error: unknown): GrokWireError {
+  if (error instanceof GrokWireError) return error
+  // 连接建立与 body 读取两个阶段的非 wire 异常（DNS/ECONNRESET/中途截断/
+  // idle-timeout abort 的底层错误）都按传输失败分类进入重试预算——对齐
+  // 参照实现 stream() 的 TRANSPORT 兜底；协议错误在翻译器内已是 wire 错误。
+  const detail = isGrokTransportError(error)
+    ? error.message
+    : error instanceof Error ? error.message : String(error)
+  return new GrokWireError(detail, 'TRANSPORT')
 }
 
 function userAgent(version: string): string {
@@ -163,12 +189,12 @@ function wireErrorFromResponse(status: number, body: string): GrokWireError {
 function withIdleTimeout(
   body: ReadableStream<Uint8Array>,
   timeoutMs: number,
-  attemptSignal: AbortSignal,
+  attemptController: AbortController,
 ): ReadableStream<Uint8Array> {
   const reader = body.getReader()
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
-      const timer = setTimeout(() => attemptSignal.abort(), timeoutMs)
+      const timer = setTimeout(() => attemptController.abort(), timeoutMs)
       try {
         const { done, value } = await reader.read()
         if (done) {
@@ -190,12 +216,15 @@ function withIdleTimeout(
  * Run one Grok Responses request to completion with the native retry policy.
  * @param config - 执行器配置。
  * @param request - 会话历史与工具面。
+ * @param stream - 可选的增量下发回调；传入后事件随产生随下发，且输出一旦
+ * 下发即冻结重试资格（retry_only_before_output）。
  * @returns 终态事件序列（含 finish）与逐轮诊断；毒 attempt 不进入结果。
  * @throws GrokWireError 预算耗尽或不可重试失败的最终错误。
  */
 export async function executeGrokRequest(
   config: GrokAdapterConfig,
   request: GrokExecutionRequest,
+  stream: GrokStreamCallbacks = {},
 ): Promise<GrokExecutionResult> {
   const transport = config.transport ?? createGrokHttpTransport()
   const url = new URL(`${config.baseURL ?? 'https://api.x.ai/v1'}/responses`)
@@ -212,7 +241,10 @@ export async function executeGrokRequest(
     'x-grok-client-identifier': 'grok-shell',
     ...config.headers,
   }
-  const input = serializeGrokMessages(request.messages, { providerId: 'xai', modelId: config.model })
+  const input = serializeGrokMessages(request.messages, {
+    ...config.providerId === undefined ? {} : { providerId: config.providerId },
+    modelId: config.model,
+  })
   const tools = serializeGrokTools(request.tools ?? [], config.hostedTools ?? [])
 
   let recoveryTail: readonly GrokWireInputItem[] = []
@@ -222,6 +254,12 @@ export async function executeGrokRequest(
   const diagnostics: GrokAttemptDiagnostic[] = []
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    // 已取消的请求不发送：AbortSignal 对已 aborted 状态不再触发 abort 事件，
+    // listener 方式对预取消静默，必须显式预检。
+    if (request.abortSignal?.aborted) {
+      diagnostics.push({ attempt, code: 'ABORTED', retried: false })
+      throw new GrokWireError('aborted by caller', 'ABORTED')
+    }
     const body: GrokWireRequest = buildGrokResponsesRequestBody({
       model: config.model,
       input: [...input, ...recoveryTail],
@@ -264,6 +302,7 @@ export async function executeGrokRequest(
         } else {
           collected.push(event)
         }
+        stream.onEvent?.(event)
       }
       if (terminal === undefined) {
         throw new GrokWireError('stream ended without finish', 'STREAM_CLOSED')
@@ -276,15 +315,17 @@ export async function executeGrokRequest(
         diagnostics.push({ attempt, code: 'ABORTED', retried: false })
         throw new GrokWireError('aborted by caller', 'ABORTED')
       }
-      const code = error instanceof GrokWireError ? error.code : 'UNKNOWN'
-      const verdict = classify(error, rateLimitUsed, doomUsed, doomBudget)
-      const willRetry = verdict.retry && attempt < maxAttempts
-      diagnostics.push({ attempt, code, retried: willRetry })
+      const failure = asGrokWireFailure(error)
+      const verdict = classify(failure, rateLimitUsed, doomUsed, doomBudget)
+      const willRetry = verdict.retry
+        && attempt < maxAttempts
+        && stream.outputDelivered?.() !== true
+      diagnostics.push({ attempt, code: failure.code, retried: willRetry })
       if (!willRetry) {
-        throw error instanceof GrokWireError ? error : new GrokWireError(String(error), 'UNKNOWN')
+        throw failure
       }
-      if (code === 'RATE_LIMIT') rateLimitUsed += 1
-      if (code === 'DOOM_LOOP') {
+      if (failure.code === 'RATE_LIMIT') rateLimitUsed += 1
+      if (failure.code === 'DOOM_LOOP') {
         doomUsed += 1
         const reminder = config.doomLoopReminder ?? GROK_RECOVERY_REMINDER
         if (reminder.length > 0) {
@@ -302,4 +343,72 @@ export async function executeGrokRequest(
     }
   }
   throw new GrokWireError('retry budget exhausted', 'RETRY_EXHAUSTED')
+}
+
+/** 单生产者/单消费者的先入先出事件队列（回调 → 异步迭代器桥接）。 */
+class GrokEventQueue {
+  private pending: GrokStreamEvent[] = []
+  private waiters: Array<() => void> = []
+  private failure: { readonly error: unknown } | undefined
+  private finished = false
+
+  push(event: GrokStreamEvent): void {
+    this.pending.push(event)
+    this.release()
+  }
+
+  finish(): void {
+    this.finished = true
+    this.release()
+  }
+
+  fail(error: unknown): void {
+    if (this.failure === undefined && !this.finished) this.failure = { error }
+    this.release()
+  }
+
+  private release(): void {
+    for (const waiter of this.waiters.splice(0)) waiter()
+  }
+
+  async *drain(): AsyncGenerator<GrokStreamEvent> {
+    for (;;) {
+      while (this.pending.length > 0) {
+        const event = this.pending.shift()
+        if (event !== undefined) yield event
+      }
+      if (this.failure !== undefined) throw this.failure.error
+      if (this.finished) return
+      await new Promise<void>(resolve => { this.waiters.push(resolve) })
+    }
+  }
+}
+
+/**
+ * 流式执行入口：事件随产生随下发，不等待终态（真流式）。
+ *
+ * 重试语义与 Rust 原版 `retry_only_before_output` 守卫一致：`start` 之后
+ * 首个内容事件下发前，传输/5xx/doom 失败仍按预算静默重试（消费者只会看到
+ * 重复的幂等 `start`）；一旦有内容事件下发，任何失败直接浮出，不再重采样。
+ * @param config - 执行器配置。
+ * @param request - 会话历史与工具面。
+ * @returns 终结于 finish（或抛出最终失败）的增量事件流。
+ */
+export function streamGrokRequest(
+  config: GrokAdapterConfig,
+  request: GrokExecutionRequest,
+): AsyncGenerator<GrokStreamEvent> {
+  let delivered = false
+  const queue = new GrokEventQueue()
+  void executeGrokRequest(config, request, {
+    onEvent: event => {
+      if (event.type !== 'start') delivered = true
+      queue.push(event)
+    },
+    outputDelivered: () => delivered,
+  }).then(
+    () => queue.finish(),
+    error => queue.fail(error),
+  )
+  return queue.drain()
 }

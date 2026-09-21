@@ -14,8 +14,9 @@
  * 标记计在预算外；max-tokens 终态的持久 replay 剔除 tool-call 块；completed
  * 无可见产出 fail-loud（EMPTY_RESPONSE）。
  *
- * 债务说明：本模块相对导入用 `.ts` 后缀（node 原生 TS 剥离可直接运行测试）；
- * M1 接入 tsc 构建时统一改 `.js`（机械替换），已记入施工图执行记录。
+ * 导入说明：相对导入用 `.js` 后缀（tsc NodeNext 构建约定）；node --test
+ * 经 test/grok-register.mjs 的 resolve hook 把指向不存在 .js 的说明符回退
+ * 到 .ts 源，零依赖直跑（见 package.json test 脚本）。
  */
 
 import {
@@ -23,7 +24,7 @@ import {
   GROK_DOOM_LOOP_EVENT,
   GrokWireError,
   grokReplayState,
-} from './grok-wire.ts'
+} from './grok-wire.js'
 import type { GrokReplayBlock, GrokWireInputItem } from './grok-wire.ts'
 
 type JsonObject = Record<string, unknown>
@@ -647,7 +648,15 @@ export async function* translateGrokResponses(
             id: `reasoning-${index}`,
             summary: slot.text.length === 0 ? [] : [{ type: 'summary_text', text: slot.text }],
           }
-          yield { type: 'reasoning_end', id: slotId(slot) }
+          // H5 双表示：reasoning 块的无损回放元数据随块结束事件下发（会话层对
+          // reasoning_start/delta/end 的 providerMetadata 做 last-wins 写入
+          // block.providerOptions，serialize 端按 grokItem 读回）。事件与 replay
+          // blocks 各持独立克隆，任一消费方的可变性不污染另一路。
+          yield {
+            type: 'reasoning_end',
+            id: slotId(slot),
+            providerMetadata: { grokItem: structuredClone(item) },
+          }
           replayBlocks.push({ type: 'reasoning', item: item as { type: 'reasoning' } & JsonObject })
         } else if (slot.kind === 'text') {
           yield { type: 'text_end', id: slotId(slot) }

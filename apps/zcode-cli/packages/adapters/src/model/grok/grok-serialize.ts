@@ -13,7 +13,7 @@
  * 持久化 assistant 消息的块 providerOptions。
  */
 
-import { GrokWireError, hostedWireTool } from './grok-wire.ts'
+import { GrokWireError, hostedWireTool } from './grok-wire.js'
 import type {
   GrokHostedToolSpec,
   GrokWireFunctionTool,

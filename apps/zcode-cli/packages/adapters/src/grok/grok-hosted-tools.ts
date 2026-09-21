@@ -11,7 +11,7 @@
  * （harness GROK_HOSTED_TOOL_NAMES = ['web_search','x_search']），照此收口。
  */
 
-import type { GrokHostedToolSpec } from '../model/grok/grok-wire.ts'
+import type { GrokHostedToolSpec } from '../model/grok/grok-wire.js'
 
 /** pinned 传输实现的 closed hosted 工具集。 */
 export const GROK_HOSTED_TOOL_NAMES = ['web_search', 'x_search'] as const
@@ -61,22 +61,28 @@ export function resolveGrokHostedTools(
   if ((fromDate !== undefined || toDate !== undefined) && !ownedSet.has('x_search')) {
     throw new Error('grok-hosted-tools: xSearch policy requires owned x_search')
   }
-  return owned.map(wireName => {
+  return owned.map((wireName): GrokHostedToolSpec => {
     if (wireName === 'web_search') {
       return {
-        type: 'web_search',
-        ...allowed === undefined && excluded === undefined ? {} : {
-          filters: {
-            ...allowed === undefined ? {} : { allowed_domains: [...allowed] },
-            ...excluded === undefined ? {} : { excluded_domains: [...excluded] },
+        wireName,
+        entry: {
+          type: 'web_search',
+          ...allowed === undefined && excluded === undefined ? {} : {
+            filters: {
+              ...allowed === undefined ? {} : { allowed_domains: [...allowed] },
+              ...excluded === undefined ? {} : { excluded_domains: [...excluded] },
+            },
           },
         },
       }
     }
     return {
-      type: 'x_search',
-      ...fromDate === undefined ? {} : { from_date: fromDate },
-      ...toDate === undefined ? {} : { to_date: toDate },
+      wireName,
+      entry: {
+        type: 'x_search',
+        ...fromDate === undefined ? {} : { from_date: fromDate },
+        ...toDate === undefined ? {} : { to_date: toDate },
+      },
     }
   })
 }

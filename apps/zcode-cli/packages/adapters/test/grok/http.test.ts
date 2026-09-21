@@ -3,6 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
+import net from 'node:net'
 import { gzipSync } from 'node:zlib'
 import type { AddressInfo } from 'node:net'
 import { createGrokHttpTransport } from '../../src/model/grok/grok-http.ts'
@@ -140,4 +141,45 @@ test('NO_PROXY bypass wins over proxy configuration', async () => {
   } finally {
     await direct.close()
   }
+})
+
+test('https requests go through the CONNECT tunnel established with the proxy', async () => {
+  const connects: string[] = []
+  const proxy = http.createServer()
+  proxy.on('connect', (req, socket) => {
+    connects.push(req.url ?? '')
+    const [host, port] = (req.url ?? '').split(':')
+    const upstream = net.connect(Number(port), host)
+    const teardown = (): void => {
+      upstream.destroy()
+      socket.destroy()
+    }
+    upstream.on('connect', () => {
+      socket.write('HTTP/1.1 200 Connection Established\r\n\r\n')
+      upstream.pipe(socket)
+      socket.pipe(upstream)
+    })
+    upstream.on('close', teardown)
+    socket.on('close', teardown)
+  })
+  await new Promise<void>(resolve => proxy.listen(0, '127.0.0.1', resolve))
+  const proxyPort = (proxy.address() as AddressInfo).port
+  // 哑 origin：任何连接立即销毁，让隧道上的 TLS 握手快速失败。判别信号是
+  // 代理侧 CONNECT 计数——被忽略的 tunnel socket 会让请求绕过代理直连。
+  let originDials = 0
+  const origin = net.createServer(socket => {
+    originDials += 1
+    socket.destroy()
+  })
+  await new Promise<void>(resolve => origin.listen(0, '127.0.0.1', resolve))
+  const originPort = (origin.address() as AddressInfo).port
+  const transport = createGrokHttpTransport({ https_proxy: `http://127.0.0.1:${proxyPort}` })
+  await assert.rejects(
+    transport.fetch(`https://localhost:${originPort}/responses`, { method: 'POST', body: '{}' }),
+  )
+  assert.deepEqual(connects, [`localhost:${originPort}`])
+  assert.ok(originDials >= 1, 'proxy dialed the origin after CONNECT')
+  await transport.close()
+  await new Promise<void>(resolve => origin.close(() => resolve()))
+  await new Promise<void>(resolve => proxy.close(() => resolve()))
 })

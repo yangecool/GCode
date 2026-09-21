@@ -344,3 +344,49 @@ test('usage mapping keeps counters disjoint', () => {
   })
   assert.equal(mapGrokUsage({}), undefined)
 })
+
+test('reasoning_end carries the lossless grokItem for durable replay', async () => {
+  const events = await collect([
+    JSON.stringify({
+      type: 'response.output_item.added',
+      output_index: 0,
+      item: { type: 'reasoning', id: 'rs_meta', encrypted_content: 'RU5D' },
+    }),
+    JSON.stringify({ type: 'response.reasoning_text.delta', output_index: 0, delta: 'thinking' }),
+    JSON.stringify({
+      type: 'response.completed',
+      response: {
+        id: 'resp_meta',
+        output: [
+          {
+            type: 'reasoning',
+            id: 'rs_meta',
+            encrypted_content: 'RU5D',
+            content: [{ type: 'reasoning_text', text: 'thinking' }],
+            status: 'completed',
+          },
+          { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'hi' }] },
+        ],
+      },
+    }),
+    DONE,
+  ])
+  const end = events.find(event => event['type'] === 'reasoning_end')
+  assert.ok(end !== undefined)
+  // 会话层对 reasoning 事件的 providerMetadata 做 last-wins 写入
+  // block.providerOptions；块级 grokItem 是 serialize 端无损回放的读取端。
+  assert.deepEqual(end['providerMetadata'], {
+    grokItem: {
+      type: 'reasoning',
+      id: 'rs_meta',
+      encrypted_content: 'RU5D',
+      content: [{ type: 'reasoning_text', text: 'thinking' }],
+      status: 'completed',
+    },
+  })
+  const finish = events.at(-1) as Record<string, unknown>
+  const replay = (finish['providerMetadata'] as Record<string, unknown>)['response'] as Record<string, unknown>
+  const blocks = replay['blocks'] as Array<Record<string, unknown>>
+  // 事件侧与 finish replay 各持独立克隆，互不共享可变引用。
+  assert.notEqual(end['providerMetadata'], blocks[0])
+})

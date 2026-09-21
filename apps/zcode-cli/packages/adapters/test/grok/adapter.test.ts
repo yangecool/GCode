@@ -4,9 +4,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { executeGrokRequest, GROK_RECOVERY_REMINDER } from '../../src/model/grok/grok-adapter.ts'
+import { executeGrokRequest, GROK_RECOVERY_REMINDER, streamGrokRequest } from '../../src/model/grok/grok-adapter.ts'
 import { createGrokHttpTransport } from '../../src/model/grok/grok-http.ts'
 import type { GrokAdapterConfig } from '../../src/model/grok/grok-adapter.ts'
+import type { GrokHttpTransport } from '../../src/model/grok/grok-http.ts'
 
 interface Captured {
   method: string
@@ -240,6 +241,205 @@ test('non-retryable 4xx fails immediately', async () => {
       (error: unknown) => (error as { code?: string }).code === 'HTTP_401',
     )
     assert.equal(server.captured.length, 1)
+  } finally {
+    await server.close()
+  }
+})
+
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>(settle => { resolve = settle })
+  return { promise, resolve }
+}
+
+function withTimeoutMs<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms)
+    timer.unref()
+    promise.then(
+      value => { clearTimeout(timer); resolve(value) },
+      error => { clearTimeout(timer); reject(error) },
+    )
+  })
+}
+
+test('pre-aborted signal fails closed without sending', async () => {
+  const server = await startScripted([(req, res) => sse(res, COMPLETED)])
+  try {
+    const controller = new AbortController()
+    controller.abort()
+    await assert.rejects(
+      executeGrokRequest(baseConfig(server), { messages: HISTORY, abortSignal: controller.signal }),
+      (error: unknown) => (error as { code?: string }).code === 'ABORTED',
+    )
+    // 已取消的请求不得发送：AbortSignal 对已 aborted 状态不会再触发事件。
+    assert.equal(server.captured.length, 0)
+  } finally {
+    await server.close()
+  }
+})
+
+test('transport-level network failures classify as retryable TRANSPORT', async () => {
+  // 真实 ECONNREFUSED（连接建立阶段）走真传输的 GrokTransportError 包装；
+  // 旧实现把非 wire 异常当 UNKNOWN 直接失败，不进传输重试分支。
+  const holder = http.createServer()
+  await new Promise<void>(resolve => holder.listen(0, '127.0.0.1', resolve))
+  const deadPort = (holder.address() as AddressInfo).port
+  await new Promise<void>(resolve => holder.close(() => resolve()))
+  const server = await startScripted([(req, res) => sse(res, COMPLETED)])
+  try {
+    const real = createGrokHttpTransport({})
+    let deadCalls = 0
+    const flaky: GrokHttpTransport = {
+      fetch: async (input, init) => {
+        deadCalls += 1
+        return await real.fetch(new URL(`http://127.0.0.1:${deadPort}/responses`), init)
+      },
+      freshHttp1Fetch: real.fetch,
+      mode: 'direct',
+      proxyEndpoints: [],
+      close: async () => {},
+    }
+    const result = await executeGrokRequest(baseConfig(server, { transport: flaky }), { messages: HISTORY })
+    assert.deepEqual(result.attempts.map(a => a.code), ['TRANSPORT', 'OK'])
+    assert.equal(deadCalls, 1)
+    assert.equal(server.captured.length, 1)
+  } finally {
+    await server.close()
+  }
+})
+
+test('mid-stream cut before output retries as TRANSPORT', async () => {
+  const server = await startScripted([
+    (req, res) => {
+      // 无终态帧的连接截断：body 读取相的裸网络错误必须按 TRANSPORT 重试。
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.write(`data: ${JSON.stringify({ type: 'response.output_item.added', output_index: 0, item: { type: 'message', role: 'assistant', id: 'msg_x' } })}\n\n`)
+      res.write(`data: ${JSON.stringify({ type: 'response.output_text.delta', output_index: 0, item_id: 'msg_x', delta: 'partial' })}\n\n`)
+      res.destroy()
+    },
+    (req, res) => sse(res, COMPLETED),
+  ])
+  try {
+    const result = await executeGrokRequest(baseConfig(server), { messages: HISTORY })
+    assert.deepEqual(result.attempts.map(a => a.code), ['TRANSPORT', 'OK'])
+    assert.equal(server.captured.length, 2)
+  } finally {
+    await server.close()
+  }
+})
+
+test('streaming delivers events incrementally before the terminal boundary', async () => {
+  const releaseTerminal = deferred<void>()
+  const server = await startScripted([(req, res) => {
+    res.writeHead(200, { 'content-type': 'text/event-stream' })
+    res.write(`data: ${JSON.stringify({ type: 'response.output_item.added', output_index: 0, item: { type: 'message', role: 'assistant', id: 'msg_s' } })}\n\n`)
+    res.write(`data: ${JSON.stringify({ type: 'response.output_text.delta', output_index: 0, item_id: 'msg_s', delta: 'partial' })}\n\n`)
+    void releaseTerminal.promise.then(() => {
+      res.write(`data: ${JSON.stringify({ type: 'response.completed', response: { id: 'resp_s', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'partial' }] }] } })}\n\n`)
+      res.write('data: [DONE]\n\n')
+      res.end()
+    })
+  }])
+  try {
+    const seen: string[] = []
+    const firstDelta = deferred<void>()
+    const consumed = (async () => {
+      for await (const event of streamGrokRequest(baseConfig(server), { messages: HISTORY })) {
+        seen.push(event.type)
+        if (event.type === 'text_delta') firstDelta.resolve()
+        if (event.type === 'finish') return
+      }
+    })()
+    // 服务器还没发终态，消费者必须已经看到 delta（真流式，非缓冲到终态）。
+    await withTimeoutMs(firstDelta.promise, 2_000, 'stream buffered until the terminal boundary')
+    releaseTerminal.resolve()
+    await withTimeoutMs(consumed, 2_000, 'stream did not finish after terminal release')
+    assert.ok(seen.includes('finish'))
+  } finally {
+    releaseTerminal.resolve()
+    await server.close()
+  }
+})
+
+test('streaming failure after delivered output surfaces instead of retrying', async () => {
+  const deliveredToClient = deferred<void>()
+  const server = await startScripted([
+    (req, res) => {
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.write(`data: ${JSON.stringify({ type: 'response.output_item.added', output_index: 0, item: { type: 'message', role: 'assistant', id: 'msg_c' } })}\n\n`)
+      res.write(`data: ${JSON.stringify({ type: 'response.output_text.delta', output_index: 0, item_id: 'msg_c', delta: 'partial' })}\n\n`)
+      // 确定性截断：客户端确认收到 delta 之后再砍连接（写后立刻 destroy
+      // 可能丢弃未冲刷的帧，让本次尝试变成无输出的干净重试）。
+      void deliveredToClient.promise.then(() => res.destroy())
+    },
+    (req, res) => sse(res, COMPLETED),
+  ])
+  try {
+    const seen: string[] = []
+    await assert.rejects(
+      (async () => {
+        for await (const event of streamGrokRequest(baseConfig(server), { messages: HISTORY })) {
+          seen.push(event.type)
+          if (event.type === 'text_delta') deliveredToClient.resolve()
+        }
+      })(),
+      (error: unknown) => (error as { code?: string }).code !== undefined,
+    )
+    assert.ok(seen.includes('text_delta'), 'output was delivered before the cut')
+    // retry_only_before_output 守卫：已下发的输出无法收回，不得重采样。
+    assert.equal(server.captured.length, 1)
+  } finally {
+    deliveredToClient.resolve()
+    await server.close()
+  }
+})
+
+test('same-provider history replays the reasoning grokItem verbatim', async () => {
+  const server = await startScripted([(req, res) => sse(res, COMPLETED)])
+  try {
+    const history = [
+      { role: 'user' as const, content: 'hello' },
+      {
+        role: 'assistant' as const,
+        providerId: 'xai-grok',
+        modelId: 'grok-4.6',
+        content: [{
+          type: 'reasoning' as const,
+          text: 'thoughts',
+          providerOptions: { grokItem: { type: 'reasoning', id: 'rs_9', encrypted_content: 'ENC', summary: [] } },
+        }],
+      },
+    ]
+    await executeGrokRequest(baseConfig(server, { providerId: 'xai-grok' }), { messages: history })
+    const input = server.captured[0]?.body['input'] as unknown[]
+    // 同源路由：原始 item（含 encrypted_content）逐字节回放，维持 prefix-cache。
+    assert.deepEqual(input[1], { type: 'reasoning', id: 'rs_9', encrypted_content: 'ENC', summary: [] })
+  } finally {
+    await server.close()
+  }
+})
+
+test('cross-provider history falls back to summary replay', async () => {
+  const server = await startScripted([(req, res) => sse(res, COMPLETED)])
+  try {
+    const history = [
+      { role: 'user' as const, content: 'hello' },
+      {
+        role: 'assistant' as const,
+        providerId: 'other-provider',
+        modelId: 'grok-4.6',
+        content: [{
+          type: 'reasoning' as const,
+          text: 'thoughts',
+          providerOptions: { grokItem: { type: 'reasoning', id: 'rs_9', encrypted_content: 'ENC', summary: [] } },
+        }],
+      },
+    ]
+    await executeGrokRequest(baseConfig(server, { providerId: 'xai-grok' }), { messages: history })
+    const input = server.captured[0]?.body['input'] as unknown[]
+    assert.deepEqual(input[1], { type: 'reasoning', summary: [{ type: 'summary_text', text: 'thoughts' }] })
   } finally {
     await server.close()
   }

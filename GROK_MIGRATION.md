@@ -321,3 +321,18 @@ ZCode 已有 plan-mode 工具与 `EnterPlanMode/ExitPlanMode` 语义。对齐点
 2. GSH `catalog` 发现流、`web`/`headless` 启动编排、`clone`、`brand`（2 行 UI 壳）——ZCode 各有对应架构。
 3. 接线债：persona → agent system prompt 装配；compaction → ZCode compact seam（触发/清账事件）；loop length salvage → 会话层 steer；auth loginViaBrowser → TUI 登录命令与 desktop 登录入口；memory 工具 → GCode 工具面注册。均已在模块头注标注接线点。
 4. 沿续债务：pnpm install 后 typecheck/lint 回填、`.ts` 后缀翻转、对账 #4/#5、`x-compaction-at` 头、maxOutputTokens 上限复核。
+
+## R1 评审修复批（872ad96..a80a34b 评审 7 项，2026-09-21）
+
+外部评审对照 grok-build/grok-harness/ZCode 提出 7 项问题（5×P1、2×P2），全部修复并补回归：
+
+1. **P1 TypeScript 构建失败**（grok-runner.ts:16-20）：`.ts` 说明符在 NodeNext 下非法（TS5097），连同 19 个类型错误一次清零——`GrokWireError` 接口/类重名（envelope 改名 `GrokWireErrorEnvelope`）、`AbortController`/`AbortSignal` 误传（`withIdleTimeout` 改收 controller）、`GrokUsage` 缺索引签名、`request.destroy()` 返回值当 void、hosted-tools 返回形状与 `GrokHostedToolSpec`（`{wireName, entry}`）不符。**验证**：adapters `tsc --noEmit` 零错误、emit 构建通过、全仓 `pnpm -r build`（33 包，含 desktop）通过。测试 harness 改为 `test/grok-register.mjs` resolve hook（`.js` 解析失败回退 `.ts`），测试文件零改动。
+2. **P1 HTTPS 未走代理隧道**（grok-http.ts:217-224）：`http.request` 无 `socket` 选项（TS2353 坐实），旧代码被静默忽略后**直连**。改 `createConnection: () => tls.connect({ socket, servername, ALPNProtocols: ['http/1.1'] })` 显式接管。实验验证：本地 CONNECT 代理 + TLS origin，CONNECT 计数 1、响应 200。回归测试用哑 origin + CONNECT 计数判别（免证书）。
+3. **P1 真实网络异常不进重试**（grok-adapter.ts:279-280）：非 wire 异常原判 UNKNOWN 直接失败。`asGrokWireFailure` 对网络相（连接建立 + body 读取）非 wire 错误统一 TRANSPORT（对齐参照 stream() 兜底）。回归：真实 ECONNREFUSED 重试恢复；无终态帧的 body 截断重试恢复。
+4. **P1 streamText 缓冲到终态**（grok-executor.ts:165-167）：改 `streamGrokRequest` —— 单生产者队列桥接回调→异步迭代器，事件随产生随下发；**retry_only_before_output 守卫**（Rust 原版语义）：`start` 之外首个事件下发后任何失败直接浮出、不再重采样；下发前保留完整预算（消费者至多重见幂等 `start`）。回归：服务器门控在 delta 后，消费者终态前必须已收到 delta；下发后截断直接失败且不发第二次请求。
+5. **P1 流式 reasoning 丢回放元数据**（grok-stream.ts:650-651）：`reasoning_end` 携带 `providerMetadata.grokItem`（终态 wire item 独立克隆）——会话层 model.ts 对 reasoning 事件 last-wins 写 `block.providerOptions`，serialize 端读回闭环。回归断言含与 finish replay 的克隆独立性。
+6. **P2 硬编码 providerId**（grok-adapter.ts:215）：`'xai'` 恒不匹配真实 provider id，同源历史被判跨 provider、丢 `grokItem`（encrypted_content/prefix-cache 全丢）。`GrokAdapterConfig.providerId` 新增并从 runner 贯通。回归：同源逐字节回放 vs 跨源 summary 降级。
+7. **P2 预取消仍发送**（grok-adapter.ts:236-238）：已 aborted 的 signal 不再触发 abort 事件，listener 方式静默。每轮 attempt 前显式预检 ABORTED。回归：server captured.length === 0。
+
+**验证状态**：93/93 绿（新增 10 个回归）；adapters typecheck + emit + 全仓 build 通过；oxlint 无新增违规（grok 目录 4 error/4 warning 均为 HEAD 旧账的 max-lines/unused-catch，未动）。
+**遗留**：lint 全仓基线本就红（29 error，非本次引入）；generateText 路径维持缓冲语义（批量契约，正确）。

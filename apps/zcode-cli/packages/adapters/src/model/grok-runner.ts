@@ -4,20 +4,17 @@
  * 只做两件事：把 RegistryProviderConfig/目录事实冻结成引擎连接配置，以及把
  * 引擎的 GrokWireError 包装成 ZCode 的 ModelProtocolError。纯映射逻辑全部
  * 在 grok-executor.ts（可独立测试）；本文件活在 ai/@zcode 运行时世界里，
- * 与其余 runner 接线同级，类型检查依赖 pnpm install 后回填。
- *
- * 注意：本文件 import grok 模块用 .ts 说明符（node 原生剥离运行时约定），
- * tsc NodeNext 集成时与其余 grok 模块一起翻转为 .js（已记录债务）。
+ * 与其余 runner 接线同级。
  */
 
 import { ModelErrorCode, ModelProtocolError } from "@zcode/contracts";
 import type { ModelEvent, ModelResult } from "@zcode/contracts";
 import type { ModelExecutionRequest, ModelExecutor } from "./model.js";
-import { createGrokModelExecutorCore } from "./grok/grok-executor.ts";
-import type { GrokModelBinding } from "./grok/grok-executor.ts";
-import { GrokWireError } from "./grok/grok-wire.ts";
-import type { GrokHttpTransport } from "./grok/grok-http.ts";
-import { createGrokHttpTransport } from "./grok/grok-http.ts";
+import { createGrokModelExecutorCore } from "./grok/grok-executor.js";
+import type { GrokModelBinding } from "./grok/grok-executor.js";
+import { GrokWireError } from "./grok/grok-wire.js";
+import type { GrokHttpTransport } from "./grok/grok-http.js";
+import { createGrokHttpTransport } from "./grok/grok-http.js";
 import type { RegistryProviderConfig } from "@zcode/provider";
 
 export interface GrokRunnerModelOptions {
@@ -95,6 +92,9 @@ export function createGrokModelExecutor(options: GrokRunnerModelOptions): ModelE
       apiKey,
       baseURL: api.baseUrl ?? GROK_DEFAULT_BASE_URL,
       model: options.modelId,
+      // 同源历史判定用真实 provider id（防止把本 provider 的历史当跨
+      // provider 丢弃 replay 元数据）。
+      providerId: options.providerId,
       transport,
     },
     binding,

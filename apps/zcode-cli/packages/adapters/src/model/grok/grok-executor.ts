@@ -17,11 +17,11 @@
  * grokHostedItem 附着依赖会话层按块持久化 assistant 消息，属 M4/M5。
  */
 
-import { executeGrokRequest } from './grok-adapter.ts'
-import type { GrokAdapterConfig, GrokExecutionRequest } from './grok-adapter.ts'
-import type { GrokFunctionToolSpec, GrokHistoryMessage } from './grok-serialize.ts'
-import type { GrokStreamEvent } from './grok-stream.ts'
-import { resolveGrokReasoningEffort } from './grok-wire.ts'
+import { executeGrokRequest, streamGrokRequest } from './grok-adapter.js'
+import type { GrokAdapterConfig, GrokExecutionRequest } from './grok-adapter.js'
+import type { GrokFunctionToolSpec, GrokHistoryMessage } from './grok-serialize.js'
+import type { GrokStreamEvent, GrokUsage } from './grok-stream.js'
+import { resolveGrokReasoningEffort } from './grok-wire.js'
 
 /** ModelToolContract 的结构子集（避免 @zcode 运行时值依赖）。 */
 export interface GrokToolContractSource {
@@ -43,7 +43,7 @@ export interface GrokModelRequestCore {
 export interface GrokTextResultCore {
   readonly text: string
   readonly finishReason: string
-  readonly usage: Record<string, unknown>
+  readonly usage?: GrokUsage
   readonly reasoning?: readonly {
     readonly type: 'reasoning'
     readonly text: string
@@ -162,9 +162,9 @@ export function createGrokModelExecutorCore(
       const { events } = await executeGrokRequest(adapterConfig(binding, base, request), executionRequest(request))
       return collectGrokTextResult(events)
     },
-    async *streamText(request) {
-      const { events } = await executeGrokRequest(adapterConfig(binding, base, request), executionRequest(request))
-      yield* events
+    streamText(request) {
+      // 真流式：事件随产生随下发（含重试资格守卫），不缓冲到终态。
+      return streamGrokRequest(adapterConfig(binding, base, request), executionRequest(request))
     },
   }
 }

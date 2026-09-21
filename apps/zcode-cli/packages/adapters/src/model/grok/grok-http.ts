@@ -12,6 +12,8 @@
 
 import http from 'node:http'
 import https from 'node:https'
+import type { Socket } from 'node:net'
+import tls from 'node:tls'
 import { Readable } from 'node:stream'
 import { createBrotliDecompress, createGunzip, createInflate } from 'node:zlib'
 
@@ -72,8 +74,13 @@ function transportFailureDetail(error: unknown): string {
 }
 
 /** Transport marker whose message contains only credential-free route facts. */
-class GrokTransportError extends TypeError {
+export class GrokTransportError extends TypeError {
   override readonly name = 'GrokTransportError'
+}
+
+/** Whether an error came from this transport's direct/proxy/fresh channels. */
+export function isGrokTransportError(error: unknown): error is GrokTransportError {
+  return error instanceof GrokTransportError
 }
 
 function noProxyMatches(noProxy: string, hostname: string): boolean {
@@ -104,7 +111,7 @@ function resolveRoute(target: URL, httpProxy: string, httpsProxy: string, noProx
   }
 }
 
-function openTunnel(proxy: URL, target: URL, signal?: AbortSignal): Promise<net_SocketLike> {
+function openTunnel(proxy: URL, target: URL, signal?: AbortSignal): Promise<Socket> {
   return new Promise((resolve, reject) => {
     const connectReq = http.request({
       host: proxy.hostname,
@@ -134,12 +141,19 @@ function openTunnel(proxy: URL, target: URL, signal?: AbortSignal): Promise<net_
   })
 }
 
-interface net_SocketLike {
-  destroy(): void
-}
-
 interface PerformOptions {
   readonly freshHttp1: boolean
+}
+
+interface SendOptions {
+  readonly protocol: typeof http | typeof https
+  readonly requestOptions: http.RequestOptions
+  /**
+   * 隧道模式：在已建立的 CONNECT 隧道上做 TLS 升级并交给本次请求独占。
+   * `http.request` 的 options 没有 `socket` 字段（传入会被静默忽略并直连），
+   * 必须走 `createConnection` 注入。
+   */
+  readonly createConnection?: http.RequestOptions['createConnection']
 }
 
 async function perform(
@@ -161,16 +175,19 @@ async function perform(
   const method = init?.method ?? (requestPayload === undefined ? 'GET' : 'POST')
   const signal = init?.signal === null ? undefined : init?.signal
 
-  const send = (protocol: typeof http | typeof https, requestOptions: http.RequestOptions): Promise<Response> =>
+  const send = ({ protocol, requestOptions, createConnection }: SendOptions): Promise<Response> =>
     new Promise<Response>((resolve, reject) => {
-      const agent = options.freshHttp1
+      const agent = createConnection === undefined && options.freshHttp1
         ? new protocol.Agent({ keepAlive: false, maxSockets: 1 })
         : undefined
       const request = protocol.request({
         ...requestOptions,
-        agent,
-        // fresh 通道显式声明单请求语义，不依赖 agent 内部默认。
-        headers: options.freshHttp1 ? { ...requestOptions.headers, connection: 'close' } : requestOptions.headers,
+        // 隧道连接由 createConnection 独占（无 agent 池化）；直连 fresh 通道
+        // 显式声明单请求语义，不依赖 agent 内部默认。
+        ...createConnection !== undefined ? { createConnection } : { agent },
+        ...createConnection === undefined && options.freshHttp1
+          ? { headers: { ...requestOptions.headers, connection: 'close' } }
+          : {},
       }, response => {
         const responseHeaders = new Headers()
         for (const [name, raw] of Object.entries(response.headers)) {
@@ -198,7 +215,7 @@ async function perform(
       })
       request.once('error', reject)
       if (signal !== undefined) {
-        const onAbort = (): void => request.destroy(new Error('aborted'))
+        const onAbort = (): void => { request.destroy(new Error('aborted')) }
         signal.addEventListener('abort', onAbort, { once: true })
         request.once('close', () => signal.removeEventListener('abort', onAbort))
       }
@@ -209,26 +226,44 @@ async function perform(
   try {
     if (route.proxyUrl === undefined) {
       return url.protocol === 'https:'
-        ? await send(https, { hostname: url.hostname, port: url.port === '' ? 443 : Number(url.port), path: `${url.pathname}${url.search}`, method, headers })
-        : await send(http, { hostname: url.hostname, port: url.port === '' ? 80 : Number(url.port), path: `${url.pathname}${url.search}`, method, headers })
+        ? await send({
+          protocol: https,
+          requestOptions: { hostname: url.hostname, port: url.port === '' ? 443 : Number(url.port), path: `${url.pathname}${url.search}`, method, headers },
+        })
+        : await send({
+          protocol: http,
+          requestOptions: { hostname: url.hostname, port: url.port === '' ? 80 : Number(url.port), path: `${url.pathname}${url.search}`, method, headers },
+        })
     }
     const proxy = route.proxyUrl
     if (url.protocol === 'https:') {
       const socket = await openTunnel(proxy, url, signal)
-      return await send(https, {
-        socket,
-        agent: false,
-        path: `${url.pathname}${url.search}`,
-        method,
-        headers,
+      return await send({
+        protocol: https,
+        requestOptions: {
+          host: url.hostname,
+          port: url.port === '' ? 443 : Number(url.port),
+          path: `${url.pathname}${url.search}`,
+          method,
+          headers,
+        },
+        // TLS 在隧道 socket 上升级：SNI/证书校验面向目标主机，ALPN 锁 HTTP/1.1。
+        createConnection: () => tls.connect({
+          socket,
+          servername: url.hostname,
+          ALPNProtocols: ['http/1.1'],
+        }),
       })
     }
-    return await send(http, {
-      hostname: proxy.hostname,
-      port: proxy.port === '' ? 80 : Number(proxy.port),
-      path: url.toString(),
-      method,
-      headers,
+    return await send({
+      protocol: http,
+      requestOptions: {
+        hostname: proxy.hostname,
+        port: proxy.port === '' ? 80 : Number(proxy.port),
+        path: url.toString(),
+        method,
+        headers,
+      },
     })
   } catch (error: unknown) {
     throw new GrokTransportError(`Grok ${options.freshHttp1 ? 'fresh HTTP/1.1 ' : ''}request failed: ${transportFailureDetail(error)}`)

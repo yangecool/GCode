@@ -122,8 +122,8 @@ export interface GrokWireRequest {
   max_output_tokens?: number
 }
 
-/** Provider error envelope returned for non-2xx requests. */
-export interface GrokWireError {
+/** Provider error envelope returned for non-2xx requests（与错误类 GrokWireError 分名）。 */
+export interface GrokWireErrorEnvelope {
   error?: { message?: string; type?: string; code?: string }
   message?: string
 }

@@ -31,14 +31,16 @@ import {
 
 test('hosted tools resolve owned entries with policies', () => {
   assert.deepEqual(resolveGrokHostedTools({}), [])
-  assert.deepEqual(resolveGrokHostedTools({ owned: ['web_search'] }), [{ type: 'web_search' }])
+  assert.deepEqual(resolveGrokHostedTools({ owned: ['web_search'] }), [
+    { wireName: 'web_search', entry: { type: 'web_search' } },
+  ])
   assert.deepEqual(resolveGrokHostedTools({
     owned: ['web_search', 'x_search'],
     webSearch: { allowedDomains: ['Example.COM.'] },
     xSearch: { fromDate: '2026-01-01', toDate: '2026-02-01' },
   }), [
-    { type: 'web_search', filters: { allowed_domains: ['example.com'] } },
-    { type: 'x_search', from_date: '2026-01-01', to_date: '2026-02-01' },
+    { wireName: 'web_search', entry: { type: 'web_search', filters: { allowed_domains: ['example.com'] } } },
+    { wireName: 'x_search', entry: { type: 'x_search', from_date: '2026-01-01', to_date: '2026-02-01' } },
   ])
 })
 
