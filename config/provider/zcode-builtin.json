@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 30,
+  "revision": 31,
   "config": {
     "providerConfigRules": {
       "templateRules": [
@@ -687,6 +687,25 @@
             }
           }
         }
+,
+    {
+      "templateId": "xai-grok",
+      "templateNameMap": {
+        "zh-CN": "xAI Grok",
+        "en-US": "xAI Grok"
+      },
+      "config": {
+        "access": {
+          "type": "api-key",
+          "apiKeyManagementUrl": "https://console.x.ai"
+        },
+        "api": {
+          "type": "grok-responses",
+          "baseUrl": "https://api.x.ai/v1"
+        },
+        "builtinModelIds": ["grok-4.6"]
+      }
+    }
       ],
       "providerRules": [
         {
@@ -2480,6 +2499,36 @@
             }
           }
         }
+,
+    {
+      "modelMatch": "^grok-4\\.6$",
+      "config": {
+        "enabled": true,
+        "properties": {
+          "contextWindow": 500000,
+          "inputFormat": {
+            "supportsText": true,
+            "supportsImage": true,
+            "supportsVideo": false,
+            "supportsAudio": false,
+            "supportsPdf": false
+          },
+          "outputFormat": { "supportsText": true },
+          "supportsToolCall": true,
+          "supportsJsonSchemaOutput": false,
+          "supportsNativeWebSearch": false,
+          "supportsMidConversationSystem": false,
+          "requiresMfjsToolSchema": false
+        },
+        "optionSpecs": {
+          "maxOutputTokens": { "max": 32000 },
+          "reasoningLevel": {
+            "values": ["low", "medium", "high", "xhigh"],
+            "map": "{}"
+          }
+        }
+      }
+    }
       ],
       "modelApiRules": [
         {

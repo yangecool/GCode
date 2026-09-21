@@ -42,6 +42,7 @@ import {
   type ResolvedAiSdkModel,
 } from "./runner-runtime.js";
 import { createModel, type ModelExecutionRequest } from "./model.js";
+import { createGrokModelExecutor } from "./grok-runner.js";
 
 export type { AiSdkModelRetryOptions } from "./retry-policy.js";
 export type {
@@ -136,6 +137,29 @@ export class AiSdkModelAdapter {
   }
 
   createModel(options: CreateAiSdkModelOptions): Model {
+    // G Code（M1）：Grok Responses 走原生执行器，绕过 AI SDK 提示词往返——
+    // serializeGrokMessages 直接消费 ModelInputMessage，重试/doom-loop 语义
+    // 由引擎自有预算拥有（H1 单引擎主张；见 grok-runner.ts 头注）。
+    if (options.providerConfig.api.type === "grok-responses") {
+      return createModel({
+        providerId: options.providerId as Model["providerId"],
+        modelId: options.modelId as Model["modelId"],
+        displayName: options.displayName,
+        properties: options.modelConfig.properties,
+        optionSpecs: {
+          maxOutputTokens: options.modelConfig.optionSpecs.maxOutputTokens,
+          reasoningLevel: options.modelConfig.optionSpecs.reasoningLevel,
+        },
+        options: options.options,
+        executor: createGrokModelExecutor({
+          providerId: options.providerId,
+          modelId: options.modelId,
+          providerConfig: options.providerConfig,
+          reasoningLevels: options.modelConfig.optionSpecs.reasoningLevel.values,
+          env: this.env,
+        }),
+      });
+    }
     const boundResolution = this.execution.bindModel({
       providerId: options.providerId,
       modelId: options.modelId,
