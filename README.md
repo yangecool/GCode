@@ -11,7 +11,7 @@
   简体中文 | <a href="README.en.md">English</a>
 </p>
 
-G Code 是 **Grok 原生的单引擎编码 Agent harness**：运行时骨架继承自 ZCode（Agent 循环、权限模式、TUI / Web / 桌面壳），引擎语义逐面对齐 grok-build 原版（Rust）——原生 Responses SSE 与无损回放、原版系统提示与子代理方言、压缩与续写策略、订阅 OAuth。除 Grok 外不内置任何模型提供商。
+G Code 是 **Grok 原生的单引擎编码 Agent harness**：运行时骨架继承自 GCode（Agent 循环、权限模式、TUI / Web / 桌面壳），引擎语义逐面对齐 grok-build 原版（Rust）——原生 Responses SSE 与无损回放、原版系统提示与子代理方言、压缩与续写策略、订阅 OAuth。除 Grok 外不内置任何模型提供商。
 
 ## 安装
 
@@ -61,9 +61,9 @@ export GCODE_GROK_SUBSCRIPTION=1
 | 订阅认证 | 设备流 OAuth（auth.x.ai）+ grok-build 客户端身份头，经 cli-chat-proxy 通道 |
 | Hosted 工具 | `GCODE_GROK_HOSTED_TOOLS`（JSON）按部署声明注入 |
 | 工具方言 | hashline 编辑协议（ChunkFingerprint anchor）、memory 工具族（search/get）按 grok 目录门控 |
-| 韧性 | doom-loop 检测、原版重试预算、流式错误定级为 ZCode 协议错误 |
+| 韧性 | doom-loop 检测、原版重试预算、流式错误定级为 GCode 协议错误 |
 
-ZCode 侧机制（四种权限模式、plan mode、folder trust、后台任务、compact 机制、输出续写、Edit/Write 工具）保持原样，由用户仲裁；G Code 只替换引擎方言内容。
+GCode 侧机制（四种权限模式、plan mode、folder trust、后台任务、compact 机制、输出续写、Edit/Write 工具）保持原样，由用户仲裁；G Code 只替换引擎方言内容。
 
 ## 开发
 
@@ -72,8 +72,8 @@ ZCode 侧机制（四种权限模式、plan mode、folder trust、后台任务�
 ```bash
 pnpm bootstrap          # 安装依赖 + 准备桌面资源 + 串行构建
 pnpm dev:desktop        # 桌面应用（Electron）
-pnpm --filter @zcode/cli dev   # CLI 源码入口（gcode/zcode）
-pnpm build:zcode        # CLI 发行包（tar.gz，需 Node 运行时）
+pnpm --filter @gcode/cli dev   # CLI 源码入口（gcode/gcode）
+pnpm build:gcode        # CLI 发行包（tar.gz，需 Node 运行时）
 pnpm bundle:desktop -- --os linux --arch x64   # 桌面安装包
 ```
 
@@ -81,7 +81,7 @@ pnpm bundle:desktop -- --os linux --arch x64   # 桌面安装包
 
 ```bash
 pnpm -r build
-cd apps/zcode-cli && pnpm --filter @zcode/adapters test -- --run
+cd apps/gcode-cli && pnpm --filter @gcode/adapters test -- --run
 ```
 
 CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）：`main` 每次推送跑 test → build CLI SEA（含 `--version` 冒烟）→ 桌面四格式打包 → 发布 nightly Release；打 `v*` tag 发布正式版。
@@ -90,9 +90,9 @@ CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）：`main` 每次推�
 
 | 目录 | 职责 |
 | --- | --- |
-| `apps/zcode-cli/packages/core` | Agent 运行时（turn 循环、compact、续写、引擎方言注入点） |
-| `apps/zcode-cli/packages/adapters/src/grok` | Grok 引擎移植层（wire、sampler、persona、compaction、hosted tools） |
-| `apps/zcode-cli/packages/{cli,bootstrap,provider}` | TUI、组装引导、Provider 注册 |
+| `apps/gcode-cli/packages/core` | Agent 运行时（turn 循环、compact、续写、引擎方言注入点） |
+| `apps/gcode-cli/packages/adapters/src/grok` | Grok 引擎移植层（wire、sampler、persona、compaction、hosted tools） |
+| `apps/gcode-cli/packages/{cli,bootstrap,provider}` | TUI、组装引导、Provider 注册 |
 | `packages/desktop`、`packages/web`、`packages/server` | Electron 桌面、Web 客户端、HTTP/WS 服务 |
 | `config/provider` | 内置 Provider / 模型目录（含 grok 规则与压缩阈值） |
 | `scripts`、`third-party` | 构建脚本、第三方声明材料 |
@@ -106,4 +106,4 @@ CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）：`main` 每次推�
 
 ## 项目声明
 
-本仓库是 ZCode 的衍生项目（Grok 单引擎化改造）。功能范围、维护规则、执行与数据风险，以及许可和第三方版权说明，详见 [NOTICE.md](NOTICE.md)。
+本仓库是 GCode 的衍生项目（Grok 单引擎化改造）。功能范围、维护规则、执行与数据风险，以及许可和第三方版权说明，详见 [NOTICE.md](NOTICE.md)。

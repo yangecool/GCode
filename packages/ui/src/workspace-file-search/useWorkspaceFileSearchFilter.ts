@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { WorkspaceFileEntry } from "@zcode/shared";
+import type { WorkspaceFileEntry } from "@gcode/shared";
 import {
   createWorkerWorkspaceFileSearchFilterBackend,
   type WorkspaceFileSearchFilterBackend,

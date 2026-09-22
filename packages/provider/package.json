@@ -1,5 +1,5 @@
 {
-  "name": "@zcode/provider",
+  "name": "@gcode/provider",
   "private": true,
   "type": "module",
   "exports": {
@@ -11,8 +11,8 @@
     "lint": "oxlint"
   },
   "dependencies": {
-    "@zcode/model-option-map": "workspace:*",
-    "@zcode/shared": "workspace:*",
+    "@gcode/model-option-map": "workspace:*",
+    "@gcode/shared": "workspace:*",
     "zod": "4.6.5"
   },
   "devDependencies": {

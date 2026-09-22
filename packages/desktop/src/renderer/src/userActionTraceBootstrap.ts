@@ -1,12 +1,12 @@
 import {
   DISABLED_RENDERER_ACTION_TRACE_CONFIG,
   RENDERER_ACTION_TRACE_SERVICE_NAME,
-  ZCODE_ENV,
-  ZCODE_VERSION,
+  GCODE_ENV,
+  GCODE_VERSION,
   type IPlatformService,
   type RendererActionTraceConfigV1,
-} from "@zcode/shared";
-import { RendererUserActionTelemetry, setUserActionTelemetry } from "@zcode/ui";
+} from "@gcode/shared";
+import { RendererUserActionTelemetry, setUserActionTelemetry } from "@gcode/ui";
 
 export function initializeDesktopUserActionTrace(options: {
   platform: IPlatformService;
@@ -24,8 +24,8 @@ export function initializeDesktopUserActionTrace(options: {
     config: DISABLED_RENDERER_ACTION_TRACE_CONFIG,
     resource: {
       serviceName: RENDERER_ACTION_TRACE_SERVICE_NAME,
-      serviceVersion: ZCODE_VERSION || "unknown",
-      deploymentEnvironment: options.isLocalDevelopmentRuntime ? "development" : ZCODE_ENV,
+      serviceVersion: GCODE_VERSION || "unknown",
+      deploymentEnvironment: options.isLocalDevelopmentRuntime ? "development" : GCODE_ENV,
       rendererInstanceId,
     },
     sendBatch: (batch) => sendBatch(batch),

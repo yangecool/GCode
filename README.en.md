@@ -11,7 +11,7 @@
   <a href="README.md">简体中文</a> | English
 </p>
 
-G Code is a **Grok-native, single-engine coding agent harness**: the runtime skeleton is inherited from ZCode (agent loop, permission modes, TUI / web / desktop shells), while the engine semantics are aligned face-by-face with the original grok-build (Rust) — native Responses SSE with lossless replay, the original system prompts and subagent dialects, compaction and continuation policies, and subscription OAuth. No other model provider is bundled.
+G Code is a **Grok-native, single-engine coding agent harness**: the runtime skeleton is inherited from GCode (agent loop, permission modes, TUI / web / desktop shells), while the engine semantics are aligned face-by-face with the original grok-build (Rust) — native Responses SSE with lossless replay, the original system prompts and subagent dialects, compaction and continuation policies, and subscription OAuth. No other model provider is bundled.
 
 ## Install
 
@@ -61,9 +61,9 @@ After starting the CLI, run `/login grok` in the session to complete subscriptio
 | Subscription auth | Device-flow OAuth (auth.x.ai) + grok-build client identity headers, over the cli-chat-proxy channel |
 | Hosted tools | Injected per deployment via `GCODE_GROK_HOSTED_TOOLS` (JSON) |
 | Tool dialects | hashline edit protocol (ChunkFingerprint anchors), memory tool family (search/get), gated by the grok catalog |
-| Resilience | Doom-loop detection, original retry budgets, streaming errors classified into ZCode protocol errors |
+| Resilience | Doom-loop detection, original retry budgets, streaming errors classified into GCode protocol errors |
 
-The ZCode-side machinery (four permission modes, plan mode, folder trust, background tasks, the compact machinery, output continuation, Edit/Write tools) is kept intact and user-arbitrated; G Code only swaps the engine dialect content.
+The GCode-side machinery (four permission modes, plan mode, folder trust, background tasks, the compact machinery, output continuation, Edit/Write tools) is kept intact and user-arbitrated; G Code only swaps the engine dialect content.
 
 ## Development
 
@@ -72,8 +72,8 @@ You need Git, Node.js **24.14.0**, and pnpm **10.33.2** (see [mise.toml](mise.to
 ```bash
 pnpm bootstrap                 # install deps + prepare desktop assets + build in order
 pnpm dev:desktop               # desktop app (Electron)
-pnpm --filter @zcode/cli dev   # CLI from source (gcode/zcode)
-pnpm build:zcode               # CLI release bundle (tar.gz, needs Node)
+pnpm --filter @gcode/cli dev   # CLI from source (gcode/gcode)
+pnpm build:gcode               # CLI release bundle (tar.gz, needs Node)
 pnpm bundle:desktop -- --os linux --arch x64   # desktop installers
 ```
 
@@ -81,7 +81,7 @@ Tests (grok suites):
 
 ```bash
 pnpm -r build
-cd apps/zcode-cli && pnpm --filter @zcode/adapters test -- --run
+cd apps/gcode-cli && pnpm --filter @gcode/adapters test -- --run
 ```
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)): every push to `main` runs test → build the CLI SEA (with a `--version` smoke test) → bundle the desktop in four formats → publish the nightly Release; pushing a `v*` tag publishes a stable release.
@@ -90,9 +90,9 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)): every push to `main` 
 
 | Directory | Responsibility |
 | --- | --- |
-| `apps/zcode-cli/packages/core` | Agent runtime (turn loop, compaction, continuation, engine-dialect injection point) |
-| `apps/zcode-cli/packages/adapters/src/grok` | Grok engine port (wire, sampler, persona, compaction, hosted tools) |
-| `apps/zcode-cli/packages/{cli,bootstrap,provider}` | TUI, bootstrap wiring, provider registry |
+| `apps/gcode-cli/packages/core` | Agent runtime (turn loop, compaction, continuation, engine-dialect injection point) |
+| `apps/gcode-cli/packages/adapters/src/grok` | Grok engine port (wire, sampler, persona, compaction, hosted tools) |
+| `apps/gcode-cli/packages/{cli,bootstrap,provider}` | TUI, bootstrap wiring, provider registry |
 | `packages/desktop`, `packages/web`, `packages/server` | Electron desktop, web client, HTTP/WS server |
 | `config/provider` | Built-in provider/model catalog (grok rules and compaction thresholds) |
 | `scripts`, `third-party` | Build scripts, third-party notice materials |
@@ -106,4 +106,4 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)): every push to `main` 
 
 ## Notice
 
-This repository is a derivative of ZCode (rebuilt as a Grok single-engine harness). Scope of features, maintenance rules, execution and data risks, and licensing and third-party copyright notes are in [NOTICE.md](NOTICE.md).
+This repository is a derivative of GCode (rebuilt as a Grok single-engine harness). Scope of features, maintenance rules, execution and data risks, and licensing and third-party copyright notes are in [NOTICE.md](NOTICE.md).

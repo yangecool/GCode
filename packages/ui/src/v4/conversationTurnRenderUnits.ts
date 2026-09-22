@@ -7,7 +7,7 @@ import type {
   TurnHeaderRow,
   UserInputRow,
   WorkflowLaunchMeta,
-} from "@zcode/shared/zcode-protocol-v4";
+} from "@gcode/shared/gcode-protocol-v4";
 import type { AssistantWorkRow, ConversationTurnFlowItem } from "@/v4/conversationTurnFlowItems.js";
 import {
   isWorkflowLaunchUserInputRow,

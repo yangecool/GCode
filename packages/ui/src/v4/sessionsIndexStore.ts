@@ -7,9 +7,9 @@ import {
   type SessionSummary,
   type SessionsIndexTopicFrame,
   type TopicFrameDeliveryKind,
-} from "@zcode/shared/zcode-protocol-v4";
-import { isZCodeFileLockTimeoutError } from "@zcode/shared";
-import { ZCODE_AGENT_RUNTIME_UNAVAILABLE_CODE } from "@zcode/services";
+} from "@gcode/shared/gcode-protocol-v4";
+import { isGCodeFileLockTimeoutError } from "@gcode/shared";
+import { GCODE_AGENT_RUNTIME_UNAVAILABLE_CODE } from "@gcode/services";
 import { logger } from "@/logger.js";
 import type { SessionsIndexTransport } from "@/v4/agentSessionsIndexTransport.js";
 
@@ -39,7 +39,7 @@ const TRANSIENT_SUBSCRIBE_RETRY_DELAYS_MS = [250, 1_000, 3_000] as const;
 const ERROR_RECOVERY_RETRY_DELAYS_MS = [5_000, 15_000, 60_000] as const;
 
 function isTransientSubscribeError(error: unknown): boolean {
-  if (isZCodeFileLockTimeoutError(error)) {
+  if (isGCodeFileLockTimeoutError(error)) {
     return true;
   }
   const code =
@@ -61,7 +61,7 @@ function isRuntimeUnavailableError(error: unknown): boolean {
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
-    (error as { code?: unknown }).code === ZCODE_AGENT_RUNTIME_UNAVAILABLE_CODE
+    (error as { code?: unknown }).code === GCODE_AGENT_RUNTIME_UNAVAILABLE_CODE
   );
 }
 

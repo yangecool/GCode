@@ -1,9 +1,9 @@
 import { cn } from "@/components/lib/utils.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useGCodeIntl } from "@/i18n/IntlProvider.js";
 import { ThemeHeroVisual, useResolvedThemeHeroPalette } from "@/openWorkspacePageThemeHero.js";
 
 export function OnboardingWelcomeAsciiVisual() {
-  const { intl } = useZCodeIntl();
+  const { intl } = useGCodeIntl();
   const palette = useResolvedThemeHeroPalette();
 
   return (

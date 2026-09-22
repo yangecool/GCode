@@ -1,17 +1,17 @@
 /* eslint-disable max-lines -- 额度重置 hook 集中处理 scope 共享请求、轮询、幂等核销与服务端历史对账。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { IUsageStatsService } from "@zcode/services";
+import type { IUsageStatsService } from "@gcode/services";
 import type {
   CodingPlanResetScopeRequest,
   CodingPlanResetStatusSnapshot,
   CodingPlanResetType,
-  ZCodeAccountAccess,
-  ZCodeProviderAccountAccess,
-} from "@zcode/shared";
+  GCodeAccountAccess,
+  GCodeProviderAccountAccess,
+} from "@gcode/shared";
 import { toast } from "@/components/ui/toast.js";
 import { useOptionalBaseWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import { useStableAccountAccess } from "@/hooks/useStableAccountAccess.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useGCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
 import {
   requestCodingPlanResetOpportunityWhenDue,
@@ -34,7 +34,7 @@ import type {
   CodingPlanQuotaResetAutoPlayReservationAttempt,
   CodingPlanQuotaResetAutoPlayedSlot,
 } from "@/store/codingPlanQuotaResetState.js";
-import { useZCodeStoreWithDefault } from "@/store/StoreProvider.js";
+import { useGCodeStoreWithDefault } from "@/store/StoreProvider.js";
 
 const STATUS_FRESHNESS_MS = 1_500;
 const USE_STATUS_RETRY_DELAYS_MS = [0, 250, 750, 1_500] as const;
@@ -366,11 +366,11 @@ export function useCodingPlanQuotaResetUi({
 }: {
   sourceKey: string | null | undefined;
   preferredProviderId?: string | null;
-  accountAccess?: ZCodeProviderAccountAccess | ZCodeAccountAccess | null;
+  accountAccess?: GCodeProviderAccountAccess | GCodeAccountAccess | null;
   enabled?: boolean;
   onEntitlementRefresh?: () => void | Promise<void>;
 }): CodingPlanQuotaResetUiController {
-  const { intl } = useZCodeIntl();
+  const { intl } = useGCodeIntl();
   const services = useOptionalBaseWorkspaceServices();
   const usageStatsService = services?.usageStatsService;
   const stableAccountAccess = useStableAccountAccess(accountAccess);
@@ -385,35 +385,35 @@ export function useCodingPlanQuotaResetUi({
     };
   }, [preferredProviderId, stableAccountAccess]);
   const enabled = Boolean(requestedEnabled && sourceKey?.trim() && usageStatsService && scope);
-  const entriesBySource = useZCodeStoreWithDefault(
+  const entriesBySource = useGCodeStoreWithDefault(
     (state) => state.codingPlanQuotaResetUiBySource,
     EMPTY_ENTRIES,
   );
-  const setEntry = useZCodeStoreWithDefault(
+  const setEntry = useGCodeStoreWithDefault(
     (state) => state.setCodingPlanQuotaResetUiEntry,
     NOOP_SET_ENTRY,
   );
-  const reserveAutoPlay = useZCodeStoreWithDefault(
+  const reserveAutoPlay = useGCodeStoreWithDefault(
     (state) => state.reserveCodingPlanQuotaResetAutoPlay,
     NOOP_RESERVE_AUTO_PLAY,
   );
-  const commitAutoPlay = useZCodeStoreWithDefault(
+  const commitAutoPlay = useGCodeStoreWithDefault(
     (state) => state.commitCodingPlanQuotaResetAutoPlay,
     NOOP_COMMIT_AUTO_PLAY,
   );
-  const releaseAutoPlay = useZCodeStoreWithDefault(
+  const releaseAutoPlay = useGCodeStoreWithDefault(
     (state) => state.releaseCodingPlanQuotaResetAutoPlay,
     NOOP_RELEASE_AUTO_PLAY,
   );
-  const observationsBySource = useZCodeStoreWithDefault(
+  const observationsBySource = useGCodeStoreWithDefault(
     (state) => state.codingPlanQuotaResetAutomaticObservationsBySource,
     EMPTY_AUTOMATIC_OBSERVATIONS,
   );
-  const playedBySource = useZCodeStoreWithDefault(
+  const playedBySource = useGCodeStoreWithDefault(
     (state) => state.codingPlanQuotaResetAutoPlayedBySource,
     EMPTY_PLAYED,
   );
-  const authSessionSeq = useZCodeStoreWithDefault((state) => state.authSessionSeq, 0);
+  const authSessionSeq = useGCodeStoreWithDefault((state) => state.authSessionSeq, 0);
   const authSessionSeqRef = useRef(authSessionSeq);
   authSessionSeqRef.current = authSessionSeq;
   const storedEntries = sourceKey ? entriesBySource[sourceKey] : undefined;

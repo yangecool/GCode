@@ -1,4 +1,4 @@
-import type { WorkspaceFileEntry } from "@zcode/shared";
+import type { WorkspaceFileEntry } from "@gcode/shared";
 
 /**
  * Safety-net cap for virtualized display. Large enough to never feel

@@ -1,5 +1,5 @@
-import type { IPluginManagementService } from "@zcode/services";
-import type { ZCodePluginScope } from "@zcode/shared";
+import type { IPluginManagementService } from "@gcode/services";
+import type { GCodePluginScope } from "@gcode/shared";
 import { logger } from "@/logger.js";
 import type { PluginManagementState } from "@/store/pluginManagementStore.js";
 
@@ -74,7 +74,7 @@ export async function loadInto(
   params: {
     workspacePath: string;
     workspaceIdentity: string | null;
-    configScope: ZCodePluginScope | null;
+    configScope: GCodePluginScope | null;
     pluginService: IPluginManagementService;
   },
 ): Promise<void> {
@@ -106,7 +106,7 @@ async function runLoadInto(
   params: {
     workspacePath: string;
     workspaceIdentity: string | null;
-    configScope: ZCodePluginScope | null;
+    configScope: GCodePluginScope | null;
     workspaceKey: string;
     pluginService: IPluginManagementService;
   },

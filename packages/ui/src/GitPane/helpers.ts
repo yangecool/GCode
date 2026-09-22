@@ -1,4 +1,4 @@
-import type { GitChangeSourceId, GitDiffResult } from "@zcode/shared";
+import type { GitChangeSourceId, GitDiffResult } from "@gcode/shared";
 import { getFiletypeFromFileName } from "@pierre/diffs";
 import {
   getPatchPreviewLineContent,

@@ -1,5 +1,5 @@
-import { recordArmsCustomEventForE2E } from "@zcode/ui";
-import { DesktopCommandIds, buildLocalMediaPreviewUrl, type IPlatformService } from "@zcode/shared";
+import { recordArmsCustomEventForE2E } from "@gcode/ui";
+import { DesktopCommandIds, buildLocalMediaPreviewUrl, type IPlatformService } from "@gcode/shared";
 
 import { desktopBrowserPlatformBridge } from "./desktopBrowserPlatformBridge.js";
 
@@ -10,155 +10,155 @@ export function createDesktopPlatform(options: {
     canSelectFilePath: true,
     createLocalMediaPreviewUrl: buildLocalMediaPreviewUrl,
     isLocalDevelopmentRuntime: options.isLocalDevelopmentRuntime,
-    selectDirectory: () => window.zcode.selectDirectory(),
-    selectFile: () => window.zcode.selectFile(),
-    selectFiles: () => window.zcode.selectFiles?.() ?? Promise.resolve([]),
-    createTempTextAttachment: (payload) => window.zcode.createTempTextAttachment(payload),
-    onRemoteConnectionLog: (handler) => window.zcode.onRemoteConnectionLog(handler),
-    onRemoteSessionClosed: (handler) => window.zcode.onRemoteSessionClosed(handler),
+    selectDirectory: () => window.gcode.selectDirectory(),
+    selectFile: () => window.gcode.selectFile(),
+    selectFiles: () => window.gcode.selectFiles?.() ?? Promise.resolve([]),
+    createTempTextAttachment: (payload) => window.gcode.createTempTextAttachment(payload),
+    onRemoteConnectionLog: (handler) => window.gcode.onRemoteConnectionLog(handler),
+    onRemoteSessionClosed: (handler) => window.gcode.onRemoteSessionClosed(handler),
     activateOrSetWorkspace: (path) =>
-      window.zcode.activateOrSetWorkspace?.(path) ?? Promise.resolve({ activated: false }),
+      window.gcode.activateOrSetWorkspace?.(path) ?? Promise.resolve({ activated: false }),
     connectRemote: (remoteOptions, requestId, context) =>
-      window.zcode.connectRemote(remoteOptions, requestId, context),
+      window.gcode.connectRemote(remoteOptions, requestId, context),
     cancelPendingRemoteConnection: (requestId) =>
-      window.zcode.cancelPendingRemoteConnection?.(requestId) ?? Promise.resolve(),
+      window.gcode.cancelPendingRemoteConnection?.(requestId) ?? Promise.resolve(),
     bindRemoteWorkspaceSessionContext: (context) =>
-      window.zcode.bindRemoteWorkspaceSessionContext?.(context) ?? Promise.resolve(),
-    disposeRemoteSession: (sessionId) => window.zcode.disposeRemoteSession(sessionId),
-    isDockerAvailable: () => window.zcode.isDockerAvailable(),
-    listWSLDistros: () => window.zcode.listWSLDistros(),
-    listDockerContainers: () => window.zcode.listDockerContainers(),
-    listSSHConfigAliases: () => window.zcode.listSSHConfigAliases(),
-    loadMcpFromUserDirectory: (payload) => window.zcode.loadMcpFromUserDirectory(payload),
-    saveMcpToUserDirectory: (payload) => window.zcode.saveMcpToUserDirectory(payload),
-    migrateLegacyCommonMcp: (payload) => window.zcode.migrateLegacyCommonMcp(payload),
-    openExternal: (url) => window.zcode.openExternal(url),
-    openFeedback: () => window.zcode.executeDesktopCommand(DesktopCommandIds.OpenFeedback),
-    openCommunity: () => window.zcode.executeDesktopCommand(DesktopCommandIds.OpenCommunity),
-    canOpenCommunity: (locale) => window.zcode.canOpenCommunity(locale),
-    openInFileManager: (path) => window.zcode.openInFileManager(path),
-    openExternalFile: (path) => window.zcode.openExternalFile(path),
-    openCuaPermissionOnboarding: window.zcode.openCuaPermissionOnboarding
+      window.gcode.bindRemoteWorkspaceSessionContext?.(context) ?? Promise.resolve(),
+    disposeRemoteSession: (sessionId) => window.gcode.disposeRemoteSession(sessionId),
+    isDockerAvailable: () => window.gcode.isDockerAvailable(),
+    listWSLDistros: () => window.gcode.listWSLDistros(),
+    listDockerContainers: () => window.gcode.listDockerContainers(),
+    listSSHConfigAliases: () => window.gcode.listSSHConfigAliases(),
+    loadMcpFromUserDirectory: (payload) => window.gcode.loadMcpFromUserDirectory(payload),
+    saveMcpToUserDirectory: (payload) => window.gcode.saveMcpToUserDirectory(payload),
+    migrateLegacyCommonMcp: (payload) => window.gcode.migrateLegacyCommonMcp(payload),
+    openExternal: (url) => window.gcode.openExternal(url),
+    openFeedback: () => window.gcode.executeDesktopCommand(DesktopCommandIds.OpenFeedback),
+    openCommunity: () => window.gcode.executeDesktopCommand(DesktopCommandIds.OpenCommunity),
+    canOpenCommunity: (locale) => window.gcode.canOpenCommunity(locale),
+    openInFileManager: (path) => window.gcode.openInFileManager(path),
+    openExternalFile: (path) => window.gcode.openExternalFile(path),
+    openCuaPermissionOnboarding: window.gcode.openCuaPermissionOnboarding
       ? (permissionOptions) =>
-          window.zcode.openCuaPermissionOnboarding?.(permissionOptions) ??
+          window.gcode.openCuaPermissionOnboarding?.(permissionOptions) ??
           Promise.resolve({ success: false, error: "not_supported" })
       : undefined,
-    prepareCuaHelperPermissionDrag: window.zcode.prepareCuaHelperPermissionDrag
+    prepareCuaHelperPermissionDrag: window.gcode.prepareCuaHelperPermissionDrag
       ? () =>
-          window.zcode.prepareCuaHelperPermissionDrag?.() ??
+          window.gcode.prepareCuaHelperPermissionDrag?.() ??
           Promise.resolve({ success: false, error: "not_supported" })
       : undefined,
-    startCuaHelperPermissionDrag: window.zcode.startCuaHelperPermissionDrag
-      ? () => window.zcode.startCuaHelperPermissionDrag?.()
+    startCuaHelperPermissionDrag: window.gcode.startCuaHelperPermissionDrag
+      ? () => window.gcode.startCuaHelperPermissionDrag?.()
       : undefined,
-    registerOAuthState: (payload) => window.zcode.registerOAuthState(payload),
-    onOAuthCallback: (callback) => window.zcode.onOAuthCallback(callback),
-    onPaymentCallback: (callback) => window.zcode.onPaymentCallback(callback),
-    onShareImport: (callback) => window.zcode.onShareImport?.(callback) ?? (() => {}),
-    notifyRendererReady: () => window.zcode.notifyRendererReady(),
-    reportTelemetryEvent: (payload) => window.zcode.reportTelemetryEvent(payload),
+    registerOAuthState: (payload) => window.gcode.registerOAuthState(payload),
+    onOAuthCallback: (callback) => window.gcode.onOAuthCallback(callback),
+    onPaymentCallback: (callback) => window.gcode.onPaymentCallback(callback),
+    onShareImport: (callback) => window.gcode.onShareImport?.(callback) ?? (() => {}),
+    notifyRendererReady: () => window.gcode.notifyRendererReady(),
+    reportTelemetryEvent: (payload) => window.gcode.reportTelemetryEvent(payload),
     reportArmsCustomEvent: (payload) => {
       recordArmsCustomEventForE2E(payload);
-      return window.zcode.reportArmsCustomEvent(payload);
+      return window.gcode.reportArmsCustomEvent(payload);
     },
-    getRendererActionTraceConfig: window.zcode.getRendererActionTraceConfig
-      ? () => window.zcode.getRendererActionTraceConfig!()
+    getRendererActionTraceConfig: window.gcode.getRendererActionTraceConfig
+      ? () => window.gcode.getRendererActionTraceConfig!()
       : undefined,
-    onRendererActionTraceConfigChanged: window.zcode.onRendererActionTraceConfigChanged
-      ? (callback) => window.zcode.onRendererActionTraceConfigChanged!(callback)
+    onRendererActionTraceConfigChanged: window.gcode.onRendererActionTraceConfigChanged
+      ? (callback) => window.gcode.onRendererActionTraceConfigChanged!(callback)
       : undefined,
-    reportLocalTtftBatch: (batch) => window.zcode.reportLocalTtftBatch(batch),
-    reportRendererActionTraceBatch: window.zcode.reportRendererActionTraceBatch
-      ? (batch) => window.zcode.reportRendererActionTraceBatch!(batch)
+    reportLocalTtftBatch: (batch) => window.gcode.reportLocalTtftBatch(batch),
+    reportRendererActionTraceBatch: window.gcode.reportRendererActionTraceBatch
+      ? (batch) => window.gcode.reportRendererActionTraceBatch!(batch)
       : undefined,
-    reportRendererHeapSample: window.zcode.reportRendererHeapSample
-      ? (sample) => window.zcode.reportRendererHeapSample!(sample)
+    reportRendererHeapSample: window.gcode.reportRendererHeapSample
+      ? (sample) => window.gcode.reportRendererHeapSample!(sample)
       : undefined,
-    showTaskNotification: (payload) => window.zcode.showTaskNotification(payload),
-    syncWindowTabs: (paths) => window.zcode.syncWindowTabs(paths),
-    syncWindowUnreadCount: (count) => window.zcode.syncWindowUnreadCount(count),
-    syncActiveTaskSession: (sessionId) => window.zcode.syncActiveTaskSession(sessionId),
-    syncAppSettings: (patch) => window.zcode.syncAppSettings?.(patch),
-    setShortcutRecordingActive: (active) => window.zcode.setShortcutRecordingActive?.(active),
-    onFocusTab: (handler) => window.zcode.onFocusTab(handler),
-    onNewTab: (handler) => window.zcode.onNewTab(handler),
+    showTaskNotification: (payload) => window.gcode.showTaskNotification(payload),
+    syncWindowTabs: (paths) => window.gcode.syncWindowTabs(paths),
+    syncWindowUnreadCount: (count) => window.gcode.syncWindowUnreadCount(count),
+    syncActiveTaskSession: (sessionId) => window.gcode.syncActiveTaskSession(sessionId),
+    syncAppSettings: (patch) => window.gcode.syncAppSettings?.(patch),
+    setShortcutRecordingActive: (active) => window.gcode.setShortcutRecordingActive?.(active),
+    onFocusTab: (handler) => window.gcode.onFocusTab(handler),
+    onNewTab: (handler) => window.gcode.onNewTab(handler),
     onCloseActiveContextRequest: (handler) =>
-      window.zcode.onCloseActiveContextRequest?.(handler) ?? (() => {}),
-    onOpenBrowserUrl: (handler) => window.zcode.onOpenBrowserUrl?.(handler) ?? (() => {}),
+      window.gcode.onCloseActiveContextRequest?.(handler) ?? (() => {}),
+    onOpenBrowserUrl: (handler) => window.gcode.onOpenBrowserUrl?.(handler) ?? (() => {}),
     onBrowserViewScreenshotSurfacePrepare: (handler) =>
-      window.zcode.onBrowserViewScreenshotSurfacePrepare?.(handler) ?? (() => {}),
+      window.gcode.onBrowserViewScreenshotSurfacePrepare?.(handler) ?? (() => {}),
     onBrowserViewScreenshotSurfaceRelease: (handler) =>
-      window.zcode.onBrowserViewScreenshotSurfaceRelease?.(handler) ?? (() => {}),
+      window.gcode.onBrowserViewScreenshotSurfaceRelease?.(handler) ?? (() => {}),
     browserViewScreenshotSurfaceReady: (payload) =>
-      window.zcode.browserViewScreenshotSurfaceReady?.(payload),
+      window.gcode.browserViewScreenshotSurfaceReady?.(payload),
     ...desktopBrowserPlatformBridge,
-    onNewTask: (handler) => window.zcode.onNewTask(handler),
+    onNewTask: (handler) => window.gcode.onNewTask(handler),
     onOpenWorkspace: (handler) => {
       // 开发态或升级后的旧窗口可能仍运行未暴露 onOpenWorkspace 的 preload，
       // renderer 直接调用会在启动时崩溃。这里和 activateOrSetWorkspace 一样做兼容兜底，
       // 缺少该 bridge 时只禁用原生菜单回调，不影响应用继续打开。
-      return window.zcode.onOpenWorkspace?.(handler) ?? (() => {});
+      return window.gcode.onOpenWorkspace?.(handler) ?? (() => {});
     },
-    onOpenWorkspacePath: (handler) => window.zcode.onOpenWorkspacePath?.(handler) ?? (() => {}),
-    onOpenFeedbackDialog: (handler) => window.zcode.onOpenFeedbackDialog?.(handler) ?? (() => {}),
-    onOpenTicketsPanel: (handler) => window.zcode.onOpenTicketsPanel?.(handler) ?? (() => {}),
-    onWindowFullscreenChanged: (handler) => window.zcode.onWindowFullscreenChanged(handler),
-    getDesktopWindowChromeState: window.zcode.getDesktopWindowChromeState
-      ? () => window.zcode.getDesktopWindowChromeState!()
+    onOpenWorkspacePath: (handler) => window.gcode.onOpenWorkspacePath?.(handler) ?? (() => {}),
+    onOpenFeedbackDialog: (handler) => window.gcode.onOpenFeedbackDialog?.(handler) ?? (() => {}),
+    onOpenTicketsPanel: (handler) => window.gcode.onOpenTicketsPanel?.(handler) ?? (() => {}),
+    onWindowFullscreenChanged: (handler) => window.gcode.onWindowFullscreenChanged(handler),
+    getDesktopWindowChromeState: window.gcode.getDesktopWindowChromeState
+      ? () => window.gcode.getDesktopWindowChromeState!()
       : undefined,
-    onDesktopWindowChromeStateChanged: window.zcode.onDesktopWindowChromeStateChanged
-      ? (handler) => window.zcode.onDesktopWindowChromeStateChanged!(handler)
+    onDesktopWindowChromeStateChanged: window.gcode.onDesktopWindowChromeStateChanged
+      ? (handler) => window.gcode.onDesktopWindowChromeStateChanged!(handler)
       : undefined,
-    getWindowControlsOverlayMetrics: () => window.zcode.getWindowControlsOverlayMetrics?.() ?? null,
+    getWindowControlsOverlayMetrics: () => window.gcode.getWindowControlsOverlayMetrics?.() ?? null,
     onWindowControlsOverlayChanged: (handler) =>
-      window.zcode.onWindowControlsOverlayChanged?.(handler) ?? (() => {}),
+      window.gcode.onWindowControlsOverlayChanged?.(handler) ?? (() => {}),
     getDesktopZoomLevel: () =>
-      window.zcode.getDesktopZoomLevel?.() ?? Promise.resolve({ zoomLevel: 0 }),
+      window.gcode.getDesktopZoomLevel?.() ?? Promise.resolve({ zoomLevel: 0 }),
     onDesktopZoomLevelChanged: (handler) =>
-      window.zcode.onDesktopZoomLevelChanged?.(handler) ?? (() => {}),
-    onTaskNotificationClick: (handler) => window.zcode.onTaskNotificationClick(handler),
-    exportLogs: () => window.zcode.exportLogs(),
+      window.gcode.onDesktopZoomLevelChanged?.(handler) ?? (() => {}),
+    onTaskNotificationClick: (handler) => window.gcode.onTaskNotificationClick(handler),
+    exportLogs: () => window.gcode.exportLogs(),
     captureWindowScreenshot: () =>
-      window.zcode.captureWindowScreenshot?.() ?? Promise.resolve(null),
-    onUpdateReady: (callback) => window.zcode.onUpdateReady(callback),
-    onUpdateCheckResult: (callback) => window.zcode.onUpdateCheckResult(callback),
-    onUpdateStateChanged: (callback) => window.zcode.onUpdateStateChanged?.(callback) ?? (() => {}),
+      window.gcode.captureWindowScreenshot?.() ?? Promise.resolve(null),
+    onUpdateReady: (callback) => window.gcode.onUpdateReady(callback),
+    onUpdateCheckResult: (callback) => window.gcode.onUpdateCheckResult(callback),
+    onUpdateStateChanged: (callback) => window.gcode.onUpdateStateChanged?.(callback) ?? (() => {}),
     getUpdateState: () =>
-      window.zcode.getUpdateState?.() ?? Promise.resolve({ kind: "idle", enabled: true }),
-    downloadUpdate: () => window.zcode.downloadUpdate?.() ?? Promise.resolve(),
-    cancelUpdateDownload: () => window.zcode.cancelUpdateDownload?.() ?? Promise.resolve(),
-    openUpdateStatusWindow: () => window.zcode.openUpdateStatusWindow?.() ?? Promise.resolve(),
+      window.gcode.getUpdateState?.() ?? Promise.resolve({ kind: "idle", enabled: true }),
+    downloadUpdate: () => window.gcode.downloadUpdate?.() ?? Promise.resolve(),
+    cancelUpdateDownload: () => window.gcode.cancelUpdateDownload?.() ?? Promise.resolve(),
+    openUpdateStatusWindow: () => window.gcode.openUpdateStatusWindow?.() ?? Promise.resolve(),
     getAutoUpdatePreferences: () =>
-      window.zcode.getAutoUpdatePreferences?.() ??
+      window.gcode.getAutoUpdatePreferences?.() ??
       Promise.resolve({ autoDownloadAndInstallUpdates: false }),
     setAutoDownloadAndInstallUpdates: (enabled) =>
-      window.zcode.setAutoDownloadAndInstallUpdates?.(enabled) ?? Promise.resolve(),
+      window.gcode.setAutoDownloadAndInstallUpdates?.(enabled) ?? Promise.resolve(),
     getDesktopSessionActivity: () =>
-      window.zcode.getDesktopSessionActivity?.() ??
+      window.gcode.getDesktopSessionActivity?.() ??
       Promise.resolve({ runningAgentSessionCount: 0 }),
-    getZCodeStdioTapDevState: () =>
-      window.zcode.getZCodeStdioTapDevState?.() ??
+    getGCodeStdioTapDevState: () =>
+      window.gcode.getGCodeStdioTapDevState?.() ??
       Promise.resolve({ enabled: false, visible: false, logDir: "", statePath: "" }),
-    onSettingsChanged: (callback) => window.zcode.onSettingsChanged?.(callback) ?? (() => {}),
+    onSettingsChanged: (callback) => window.gcode.onSettingsChanged?.(callback) ?? (() => {}),
     onApplicationLocaleChanged: (callback) =>
-      window.zcode.onApplicationLocaleChanged?.(callback) ?? (() => {}),
-    onPostUpdateReleaseNotes: (callback) => window.zcode.onPostUpdateReleaseNotes(callback),
+      window.gcode.onApplicationLocaleChanged?.(callback) ?? (() => {}),
+    onPostUpdateReleaseNotes: (callback) => window.gcode.onPostUpdateReleaseNotes(callback),
     acknowledgePostUpdateReleaseNotes: (version) =>
-      window.zcode.acknowledgePostUpdateReleaseNotes(version),
-    skipUpdateVersion: (version) => window.zcode.skipUpdateVersion?.(version) ?? Promise.resolve(),
-    quitAndInstallUpdate: () => window.zcode.quitAndInstallUpdate(),
-    getInstalledEditors: () => window.zcode.getInstalledEditors(),
+      window.gcode.acknowledgePostUpdateReleaseNotes(version),
+    skipUpdateVersion: (version) => window.gcode.skipUpdateVersion?.(version) ?? Promise.resolve(),
+    quitAndInstallUpdate: () => window.gcode.quitAndInstallUpdate(),
+    getInstalledEditors: () => window.gcode.getInstalledEditors(),
     getApplicationIcon: (bundleId) =>
-      window.zcode.getApplicationIcon?.(bundleId) ?? Promise.resolve(null),
+      window.gcode.getApplicationIcon?.(bundleId) ?? Promise.resolve(null),
     openInEditor: (editorId, path, editorOptions) =>
-      window.zcode.openInEditor(editorId, path, editorOptions),
-    executeDesktopCommand: (command) => window.zcode.executeDesktopCommand(command),
-    setApplicationLocale: (locale) => window.zcode.setApplicationLocale(locale),
+      window.gcode.openInEditor(editorId, path, editorOptions),
+    executeDesktopCommand: (command) => window.gcode.executeDesktopCommand(command),
+    setApplicationLocale: (locale) => window.gcode.setApplicationLocale(locale),
     getSystemLocale: () =>
-      window.zcode.getSystemLocale?.() ??
+      window.gcode.getSystemLocale?.() ??
       Promise.resolve(navigator.language.toLowerCase().startsWith("zh") ? "zh-CN" : "en-US"),
-    setTitleBarTheme: (theme) => window.zcode.setTitleBarTheme(theme),
+    setTitleBarTheme: (theme) => window.gcode.setTitleBarTheme(theme),
     getDeviceId: () =>
-      (window as Window & { __ZCODE_DEVICE_ID__?: string }).__ZCODE_DEVICE_ID__ ?? "",
+      (window as Window & { __GCODE_DEVICE_ID__?: string }).__GCODE_DEVICE_ID__ ?? "",
   };
 }

@@ -1,8 +1,8 @@
-import type { ZCodeTaskMeta } from "@zcode/shared";
+import type { GCodeTaskMeta } from "@gcode/shared";
 import type { TaskListRowActivity } from "@/v4/taskListRowActivity.js";
 
 export function deriveTaskLeadingIndicator(
-  task: ZCodeTaskMeta,
+  task: GCodeTaskMeta,
   activity: TaskListRowActivity | null,
 ): "error" | "unread" | "loading" | "none" {
   if (activity?.phase === "error") {

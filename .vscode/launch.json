@@ -2,11 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "ZCode Desktop: Main",
+      "name": "GCode Desktop: Main",
       "type": "pwa-node",
       "request": "attach",
       "port": 9231,
-      "preLaunchTask": "zcode: start electron (debug)",
+      "preLaunchTask": "gcode: start electron (debug)",
       "restart": true,
       "timeout": 30000,
       "outFiles": ["${workspaceFolder}/packages/desktop/out/**/*.js"],
@@ -19,11 +19,11 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "ZCode Desktop: Main (with host inspect)",
+      "name": "GCode Desktop: Main (with host inspect)",
       "type": "pwa-node",
       "request": "attach",
       "port": 9231,
-      "preLaunchTask": "zcode: start electron (debug with host inspect)",
+      "preLaunchTask": "gcode: start electron (debug with host inspect)",
       "restart": true,
       "timeout": 30000,
       "outFiles": ["${workspaceFolder}/packages/desktop/out/**/*.js"],
@@ -34,7 +34,7 @@
       "skipFiles": ["<node_internals>/**"]
     },
     {
-      "name": "ZCode Desktop: Renderer",
+      "name": "GCode Desktop: Renderer",
       "type": "pwa-chrome",
       "request": "attach",
       "port": 9229,
@@ -42,7 +42,7 @@
       "timeout": 30000
     },
     {
-      "name": "ZCode Desktop: Host",
+      "name": "GCode Desktop: Host",
       "type": "pwa-node",
       "request": "attach",
       "port": 9230,
@@ -58,16 +58,16 @@
   ],
   "compounds": [
     {
-      "name": "ZCode Desktop: F5",
-      "configurations": ["ZCode Desktop: Main", "ZCode Desktop: Renderer"],
+      "name": "GCode Desktop: F5",
+      "configurations": ["GCode Desktop: Main", "GCode Desktop: Renderer"],
       "stopAll": true
     },
     {
-      "name": "ZCode Desktop: F5 (with host inspect)",
+      "name": "GCode Desktop: F5 (with host inspect)",
       "configurations": [
-        "ZCode Desktop: Main (with host inspect)",
-        "ZCode Desktop: Renderer",
-        "ZCode Desktop: Host"
+        "GCode Desktop: Main (with host inspect)",
+        "GCode Desktop: Renderer",
+        "GCode Desktop: Host"
       ],
       "stopAll": true
     }

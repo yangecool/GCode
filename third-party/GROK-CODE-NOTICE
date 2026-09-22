@@ -8,12 +8,12 @@ Apache License, Version 2.0 (see LICENSE-APACHE-2.0 in this directory).
 Ported, derived works and behavioral references (upstream revisions
 a28ee2b2 / e8563f8f, client version 1.0.38):
 
-  apps/zcode-cli/packages/adapters/src/model/grok/*   — Responses wire, SSE
+  apps/gcode-cli/packages/adapters/src/model/grok/*   — Responses wire, SSE
       framing, replay state, request serialization, HTTP transport (CONNECT
       tunnel, fresh HTTP/1.1), execution orchestration (retry/doom-loop),
       ModelExecutor mapping (grok-adapter, grok-http, grok-stream, grok-wire,
       grok-serialize, grok-executor, grok-runner).
-  apps/zcode-cli/packages/adapters/src/grok/*          — persona templates,
+  apps/gcode-cli/packages/adapters/src/grok/*          — persona templates,
       hosted-tools owner resolver, compaction prompts/policy, hashline edit
       scheme (chunk_v1), loop constants (length salvage), memory v2 store,
       OAuth device flow (issuer https://auth.x.ai).

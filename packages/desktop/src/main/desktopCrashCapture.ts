@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { basename, join } from "node:path";
 import { app, crashReporter, type BrowserWindow, type WebContents } from "electron";
-import { getAppConfigDir } from "@zcode/services/node";
+import { getAppConfigDir } from "@gcode/services/node";
 import {
   type CrashDumpV8OomSummary,
   readCrashDumpAnnotationsFromFile,
@@ -428,7 +428,7 @@ export function registerCrashEventMonitor(
     });
     hooks?.onRenderProcessGone?.(webContents, details);
     // 远端 crash SDK 可能会在处理后清理 live 目录里的原始 dmp。
-    // 这里在事件后补两次延迟归档，把原始 dump 复制到 ~/.zcode/v2/crash/archive，
+    // 这里在事件后补两次延迟归档，把原始 dump 复制到 ~/.gcode/v2/crash/archive，
     // 这样既保留线上上报，又能在本地留下一份可供排查的副本。
     scheduleCrashArchive(logger, paths, "render-process-gone");
   });

@@ -35,10 +35,10 @@ jobs:
         run: pnpm -r build
 
       - name: Grok engine tests (adapters, 98)
-        run: pnpm --filter @zcode/adapters test
+        run: pnpm --filter @gcode/adapters test
 
       - name: Session wiring tests (core, 3)
-        run: pnpm --filter @zcode/core test
+        run: pnpm --filter @gcode/core test
 
   build-cli:
     name: GCode CLI (linux-x64 standalone)
@@ -62,20 +62,20 @@ jobs:
       - name: Build CLI bundle + SEA executable (linux-x64)
         run: |
           pnpm -r build
-          pnpm --filter @zcode/cli exec node scripts/build-sea.mjs --targets linux-x64
+          pnpm --filter @gcode/cli exec node scripts/build-sea.mjs --targets linux-x64
 
       - name: Smoke test (gcode --version)
         run: |
-          chmod +x apps/zcode-cli/packages/cli/dist/zcode-linux-x64
-          apps/zcode-cli/packages/cli/dist/zcode-linux-x64 --version
+          chmod +x apps/gcode-cli/packages/cli/dist/gcode-linux-x64
+          apps/gcode-cli/packages/cli/dist/gcode-linux-x64 --version
 
       - name: Upload GCode CLI artifact
         uses: actions/upload-artifact@v4
         with:
           name: GCode-CLI-linux-x64
           path: |
-            apps/zcode-cli/packages/cli/dist/zcode-linux-x64
-            apps/zcode-cli/packages/cli/dist/zcode.cjs
+            apps/gcode-cli/packages/cli/dist/gcode-linux-x64
+            apps/gcode-cli/packages/cli/dist/gcode.cjs
           if-no-files-found: error
 
   build-cli-windows-x64:
@@ -110,16 +110,16 @@ jobs:
       - name: Build CLI bundle + SEA executable (win-x64)
         run: |
           pnpm -r build
-          pnpm --filter @zcode/cli exec node scripts/build-sea.mjs --targets win-x64
+          pnpm --filter @gcode/cli exec node scripts/build-sea.mjs --targets win-x64
 
       - name: Smoke test (gcode --version)
-        run: apps/zcode-cli/packages/cli/dist/zcode-windows-x64.exe --version
+        run: apps/gcode-cli/packages/cli/dist/gcode-windows-x64.exe --version
 
       - name: Upload GCode CLI artifact
         uses: actions/upload-artifact@v4
         with:
           name: GCode-CLI-win-x64
-          path: apps/zcode-cli/packages/cli/dist/zcode-windows-x64.exe
+          path: apps/gcode-cli/packages/cli/dist/gcode-windows-x64.exe
           if-no-files-found: error
 
   build-desktop-linux-x64:
@@ -127,10 +127,10 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     env:
-      ZCODE_TARGET_OS: linux
-      ZCODE_TARGET_ARCH: x64
+      GCODE_TARGET_OS: linux
+      GCODE_TARGET_ARCH: x64
       # 生产后端身份（无 _TEST 产物后缀）。
-      ZCODE_ENV: production
+      GCODE_ENV: production
       NODE_OPTIONS: --max-old-space-size=8192
     steps:
       - uses: actions/checkout@v4
@@ -152,7 +152,7 @@ jobs:
       - name: Build desktop (runtime assets + production build)
         run: |
           set +e
-          pnpm --filter @zcode/desktop build > /tmp/build.log 2>&1
+          pnpm --filter @gcode/desktop build > /tmp/build.log 2>&1
           code=$?
           if [ "$code" -ne 0 ]; then
             tail -n 60 /tmp/build.log | grep -iE "error|failed|⨯|Exit code" | tail -n 8 | while IFS= read -r line; do
@@ -165,7 +165,7 @@ jobs:
       - name: Bundle desktop installers (AppImage/deb/rpm/pacman)
         run: |
           set +e
-          pnpm --filter @zcode/desktop bundle > /tmp/bundle.log 2>&1
+          pnpm --filter @gcode/desktop bundle > /tmp/bundle.log 2>&1
           code=$?
           if [ "$code" -ne 0 ]; then
             # 失败尾部以 ::error 注解发出（注解经公开 API 可读，便于无 token 诊断）。
@@ -196,9 +196,9 @@ jobs:
       run:
         shell: bash
     env:
-      ZCODE_TARGET_OS: win
-      ZCODE_TARGET_ARCH: x64
-      ZCODE_ENV: production
+      GCODE_TARGET_OS: win
+      GCODE_TARGET_ARCH: x64
+      GCODE_ENV: production
       NODE_OPTIONS: --max-old-space-size=8192
     steps:
       - uses: actions/checkout@v4
@@ -222,7 +222,7 @@ jobs:
       - name: Build desktop (runtime assets + production build)
         run: |
           set +e
-          pnpm --filter @zcode/desktop build > /tmp/build.log 2>&1
+          pnpm --filter @gcode/desktop build > /tmp/build.log 2>&1
           code=$?
           if [ "$code" -ne 0 ]; then
             tail -n 60 /tmp/build.log | grep -iE "error|failed|⨯|Exit code" | tail -n 8 | while IFS= read -r line; do
@@ -235,7 +235,7 @@ jobs:
       - name: Bundle desktop installer (NSIS exe)
         run: |
           set +e
-          pnpm --filter @zcode/desktop bundle > /tmp/bundle.log 2>&1
+          pnpm --filter @gcode/desktop bundle > /tmp/bundle.log 2>&1
           code=$?
           if [ "$code" -ne 0 ]; then
             tail -n 60 /tmp/bundle.log | grep -iE "error|failed|⨯|Exit code" | tail -n 8 | while IFS= read -r line; do
@@ -278,10 +278,10 @@ jobs:
         run: |
           mkdir -p release
           # CLI：单文件 SEA 可执行 + 便携 bundle。
-          mv artifacts/zcode-linux-x64 release/GCode-CLI-linux-x64
+          mv artifacts/gcode-linux-x64 release/GCode-CLI-linux-x64
           chmod +x release/GCode-CLI-linux-x64
-          mv artifacts/zcode.cjs release/GCode-CLI-linux-x64.cjs
-          mv artifacts/zcode-windows-x64.exe release/GCode-CLI-win-x64.exe
+          mv artifacts/gcode.cjs release/GCode-CLI-linux-x64.cjs
+          mv artifacts/gcode-windows-x64.exe release/GCode-CLI-win-x64.exe
           # 桌面安装器（GCode-<version>-<os>-<arch>.*，构建侧已定名）。
           mv artifacts/*.AppImage artifacts/*.deb artifacts/*.rpm artifacts/*.pkg.tar.zst release/ 2>/dev/null || true
           mv artifacts/GCode-*-win-*.exe artifacts/*.blockmap release/ 2>/dev/null || true

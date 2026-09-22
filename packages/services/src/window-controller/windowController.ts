@@ -1,6 +1,6 @@
-import type { Event } from "@zcode/rpc";
-import { ServiceChannels } from "@zcode/shared";
-import type { ZCodeTaskMeta } from "@zcode/shared";
+import type { Event } from "@gcode/rpc";
+import { ServiceChannels } from "@gcode/shared";
+import type { GCodeTaskMeta } from "@gcode/shared";
 import type {
   ControllerResyncParams,
   ControllerResyncResult,
@@ -11,14 +11,14 @@ import type {
   WindowHostControllerTaskRow,
   WindowHostControllerWorkspaceFrame,
   WindowHostTaskAddress,
-} from "@zcode/shared/zcode-protocol-v4";
+} from "@gcode/shared/gcode-protocol-v4";
 import { createServiceDescriptor } from "../descriptors.js";
-import type { ZCodeArchivedTaskDeletionResult } from "#src/session/zcodeTaskService.js";
+import type { GCodeArchivedTaskDeletionResult } from "#src/session/gcodeTaskService.js";
 import type {
-  ZCodeTaskListItem,
-  ZCodeTaskListQuery,
-  ZCodeTaskListResult,
-} from "../session/zcodeTaskListTypes.js";
+  GCodeTaskListItem,
+  GCodeTaskListQuery,
+  GCodeTaskListResult,
+} from "../session/gcodeTaskListTypes.js";
 
 export type WindowHostControllerMutation =
   | { kind: "pin"; pinned: boolean }
@@ -30,14 +30,14 @@ export type WindowHostControllerMutation =
   | { kind: "open" }
   | { kind: "resume" };
 
-export type WindowHostControllerTaskListItem = ZCodeTaskListItem & {
+export type WindowHostControllerTaskListItem = GCodeTaskListItem & {
   remoteSessionId?: string;
   sourceAvailability: "online" | "offline";
   liveStatus: WindowHostControllerTaskRow["liveStatus"];
   activity?: WindowHostControllerTaskRow["activity"];
 };
 
-export interface WindowHostControllerTaskListResult extends Omit<ZCodeTaskListResult, "items"> {
+export interface WindowHostControllerTaskListResult extends Omit<GCodeTaskListResult, "items"> {
   items: WindowHostControllerTaskListItem[];
 }
 
@@ -54,12 +54,12 @@ export interface IWindowControllerService {
   deleteArchivedTasks(params: {
     address: WindowHostTaskAddress;
     taskIds: string[];
-  }): Promise<ZCodeArchivedTaskDeletionResult>;
-  listTaskList(params: ZCodeTaskListQuery): Promise<WindowHostControllerTaskListResult>;
+  }): Promise<GCodeArchivedTaskDeletionResult>;
+  listTaskList(params: GCodeTaskListQuery): Promise<WindowHostControllerTaskListResult>;
   mutateTask(params: {
     address: WindowHostTaskAddress;
     mutation: WindowHostControllerMutation;
-  }): Promise<ZCodeTaskMeta | null>;
+  }): Promise<GCodeTaskMeta | null>;
   subscribeControllerV4(params: ControllerSubscribeParams): Promise<ControllerSubscribeResult>;
   resyncControllerV4(params: ControllerResyncParams): Promise<ControllerResyncResult>;
   unsubscribeControllerV4(params: ControllerUnsubscribeParams): Promise<void>;

@@ -14,7 +14,7 @@ export type {
   IntegratedTerminalShellSelection,
   Locale,
   LocalePreference,
-  ZCodeInteractionBehavior,
+  GCodeInteractionBehavior,
   TabId,
   TabState,
   ResourceUsageCategory,
@@ -28,9 +28,9 @@ export type {
 } from "./protocol.js";
 export type { WorkspacePurpose } from "./workspacePurpose.js";
 export { DEFAULT_LOCALE } from "./protocol.js";
-export { ZCODE_VERSION, ZCODE_COMMIT, ZCODE_BUILD_TIME } from "./version.js";
+export { GCODE_VERSION, GCODE_COMMIT, GCODE_BUILD_TIME } from "./version.js";
 export type { HelloMessage, HelloAckMessage } from "./handshake.js";
-export type { ArmsRumEnv, ZCodeEnv, ZCodeProductFlavor } from "./env.js";
+export type { ArmsRumEnv, GCodeEnv, GCodeProductFlavor } from "./env.js";
 export type { RemoteAssetInstallMode } from "./remoteAssetInstallMode.js";
 export type {
   RemoteResourcePackageId,
@@ -60,17 +60,17 @@ export {
   serializeShortcutBinding,
 } from "./shortcutCommands.js";
 export {
-  ZCODE_ENV,
-  ZCODE_PRODUCT_FLAVOR,
-  ZCODE_APP_VERSION_ENV,
-  ZCODE_BUILD_COMMIT_ID_ENV,
-  RUNTIME_ZCODE_DEBUG,
-  ZCODE_TELEMETRY_REPORT_ENDPOINT,
-  ZCODE_ARMS_RUM_ENDPOINT,
-  ZCODE_TELEMETRY_ENABLED,
-  mapZCodeEnvToArmsRumEnv,
-  normalizeZCodeEnv,
-  normalizeZCodeProductFlavor,
+  GCODE_ENV,
+  GCODE_PRODUCT_FLAVOR,
+  GCODE_APP_VERSION_ENV,
+  GCODE_BUILD_COMMIT_ID_ENV,
+  RUNTIME_GCODE_DEBUG,
+  GCODE_TELEMETRY_REPORT_ENDPOINT,
+  GCODE_ARMS_RUM_ENDPOINT,
+  GCODE_TELEMETRY_ENABLED,
+  mapGCodeEnvToArmsRumEnv,
+  normalizeGCodeEnv,
+  normalizeGCodeProductFlavor,
 } from "./env.js";
 export * from "./errors.js";
 export type { SessionCreateSource } from "./sessionCreateSource.js";
@@ -78,31 +78,31 @@ export { resolveSafeEndpointHostname } from "./endpointHostname.js";
 export * from "./rendererActionTrace.js";
 export * from "./validation.js";
 export * from "./api.js";
-export * from "./zcode-protocol/index.js";
+export * from "./gcode-protocol/index.js";
 export * from "./account-provider-state.js";
 // re-home：旧协议承重面的幸存文件（消费者继续走 barrel，零感知）
-export * from "./zcode-protocol-legacy-types.js";
-export * from "./zcode-task-types-core.js";
+export * from "./gcode-protocol-legacy-types.js";
+export * from "./gcode-task-types-core.js";
 export * from "./task-realtime-core.js";
 export * from "./remote-workspace-identity.js";
-export * from "./zcode-api-retry-status.js";
-export * from "./zcode-network-debug-status.js";
-export * from "./zcode-session-visible-content.js";
+export * from "./gcode-api-retry-status.js";
+export * from "./gcode-network-debug-status.js";
+export * from "./gcode-session-visible-content.js";
 export * from "./official-mcp-auth.js";
 export * from "./official-mcp-tool-error.js";
 export * from "./conversation-message-projection-policy.js";
 export * from "./conversation-share.js";
 export * from "./conversation-preview-artifacts.js";
-export * from "./zcode-session-task-status.js";
-export * from "./zcode-tool-projection-memory.js";
-export * from "./zcode-slash-command-help.js";
-export * from "./zcodeEndpoint.js";
-export * from "./zcode-source-headers.js";
-export * from "./zcode-agent-policy.js";
-export * from "./zcode-media-policy.js";
+export * from "./gcode-session-task-status.js";
+export * from "./gcode-tool-projection-memory.js";
+export * from "./gcode-slash-command-help.js";
+export * from "./gcodeEndpoint.js";
+export * from "./gcode-source-headers.js";
+export * from "./gcode-agent-policy.js";
+export * from "./gcode-media-policy.js";
 export * from "./media-preview.js";
 export * from "./plugin-display-name.js";
-export * from "./zcode-agent-runtime.js";
+export * from "./gcode-agent-runtime.js";
 export * from "./runtimeEnv.js";
 export * from "./dynamic-workflow-feature.js";
 export * from "./markdown-artifact-images.js";
@@ -219,7 +219,7 @@ export type {
   UpdateCheckResultPayload,
   UpdateStatePayload,
   WSLDistro,
-  ZCodeStdioTapDevState,
+  GCodeStdioTapDevState,
 } from "./platform.js";
 export type {
   CuaAccessibilitySettingsResult,
@@ -227,15 +227,15 @@ export type {
   OpenCuaPermissionOnboardingOptions,
   PrepareCuaHelperPermissionDragResult,
 } from "./cuaAccessibilitySettings.js";
-export type { ZCodeTaskCreateResult } from "./zcode-task-types.js";
-export * from "./zcode-task-types.js";
+export type { GCodeTaskCreateResult } from "./gcode-task-types.js";
+export * from "./gcode-task-types.js";
 export * from "./automation-types.js";
 export * from "./off-peak-types.js";
 export * from "./background-task-control-merge.js";
 export * from "./background-task-controls.js";
 export * from "./background-task-notifications.js";
 export * from "./background-bash-jobs.js";
-export * from "./zcode-agent-model-state.js";
+export * from "./gcode-agent-model-state.js";
 export * from "./task-realtime.js";
 export { formatTimestamp, formatLogPrefix } from "./log-format.js";
 export * from "./model-provider-types.js";
@@ -266,7 +266,7 @@ export * from "./mcp.js";
 export * from "./runtime-tool-runtime.js";
 export * from "./git.js";
 export * from "./assistant-message-parts.js";
-export * from "./zcodePersistedMessageMerge.js";
+export * from "./gcodePersistedMessageMerge.js";
 export * from "./assistant-presentation.js";
 export * from "./tool-call-summary.js";
 export * from "./tool-identity.js";

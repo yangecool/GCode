@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { sparseShape } from "@zcode/shared/config-schema";
+import { sparseShape } from "@gcode/shared/config-schema";
 
 export const providerApiTypeDataSchema = z.enum([
   "anthropic-messages",
   "openai-chat-completions",
   "openai-responses",
-  // G Code（M1）：xAI Grok Responses 原生协议（引擎在 @zcode/adapters grok/）。
+  // G Code（M1）：xAI Grok Responses 原生协议（引擎在 @gcode/adapters grok/）。
   "grok-responses",
 ]);
 export const providerGroupDataSchema = z.enum([

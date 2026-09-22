@@ -14,11 +14,11 @@ import {
   type LocalTtftFacts,
   type LocalTtftRecord,
   type LocalTtftOutputKind,
-} from "@zcode/shared";
+} from "@gcode/shared";
 import type {
   ConversationTopicFrame,
   TopicFrameDeliveryKind,
-} from "@zcode/shared/zcode-protocol-v4";
+} from "@gcode/shared/gcode-protocol-v4";
 
 /** Renderer 独占点击总时钟；不使用 ACK 或旁路 telemetry 判定首输出。 */
 export class LocalTtftObserver {

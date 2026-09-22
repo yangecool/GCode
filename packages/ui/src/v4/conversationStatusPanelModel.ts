@@ -1,4 +1,4 @@
-import type { GitRepositorySummary } from "@zcode/shared";
+import type { GitRepositorySummary } from "@gcode/shared";
 import type {
   BackgroundWorkSummary,
   GoalState,
@@ -6,7 +6,7 @@ import type {
   RunningSubagentSummary,
   ToolCallRow,
   WorkflowRunState,
-} from "@zcode/shared/zcode-protocol-v4";
+} from "@gcode/shared/gcode-protocol-v4";
 import { extractPlanToolCallContent, getPlanDirectoryTitle } from "@/lib/planToolCall.js";
 import { workflowRunStepCounts } from "@/v4/workflowRunCardJoin.js";
 

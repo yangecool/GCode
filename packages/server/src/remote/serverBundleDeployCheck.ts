@@ -1,11 +1,11 @@
-import type { IRemoteBackend, StdioStream } from "@zcode/server/remote/backend.js";
-import { quotePosixPathArg, quotePosixShellArg } from "@zcode/server/remote/posixShell.js";
+import type { IRemoteBackend, StdioStream } from "@gcode/server/remote/backend.js";
+import { quotePosixPathArg, quotePosixShellArg } from "@gcode/server/remote/posixShell.js";
 
 const REQUIRED_SERVER_BUNDLE_MARKERS = [
   "skill-sync",
   "mcp-sync",
   "plugin-sync",
-  "__zcode_rpc_nested_uint8array_v1",
+  "__gcode_rpc_nested_uint8array_v1",
   "exportMarketplaceSourceArchive",
   "importMarketplaceSourceArchive",
 ];

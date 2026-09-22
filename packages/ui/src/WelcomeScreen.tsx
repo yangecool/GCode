@@ -15,16 +15,16 @@ import {
   TID_OAUTH_LOGIN_BUTTON,
   ZAI_PROVIDER_ID,
   testId,
-} from "@zcode/shared";
+} from "@gcode/shared";
 import { Alert, AlertDescription } from "./components/ui/alert.js";
 import { Button } from "./components/ui/button.js";
-import { ZCodeAboutLogo } from "@/components/ui/ZCodeAboutLogo.js";
+import { GCodeAboutLogo } from "@/components/ui/GCodeAboutLogo.js";
 import { useOAuth } from "./hooks/useOAuth.js";
-import { useZCodeIntl } from "./i18n/IntlProvider.js";
+import { useGCodeIntl } from "./i18n/IntlProvider.js";
 import { LoginApiKeyForm } from "./login/LoginApiKeyForm.js";
 import { renderOAuthProviderIcon } from "./lib/oauthProviderIcon.js";
 import { ThemeHeroVisual } from "./openWorkspacePageThemeHero.js";
-import { useZCodeStore } from "./store/StoreProvider.js";
+import { useGCodeStore } from "./store/StoreProvider.js";
 
 interface WelcomeScreenProps {
   onComplete: (reason: LoginCompleteReason) => void | Promise<void>;
@@ -69,7 +69,7 @@ function shouldCompleteLoginFromExistingUser(params: {
 }
 
 function LoginPanel({ active, onComplete }: LoginPanelProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useGCodeIntl();
   const {
     startLogin,
     cancel,
@@ -81,14 +81,14 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
     pendingProvider,
     refreshProviders,
   } = useOAuth();
-  const user = useZCodeStore((s) => s.user);
-  const oauthError = useZCodeStore((s) => s.oauthError);
-  const setOAuthError = useZCodeStore((s) => s.setOAuthError);
-  const oauthSuccessSeq = useZCodeStore((s) => s.oauthSuccessSeq);
-  const lastOAuthSuccessProvider = useZCodeStore((s) => s.lastOAuthSuccessProvider);
-  const loginEntryRequest = useZCodeStore((s) => s.loginEntryRequest);
-  const clearLoginEntryRequest = useZCodeStore((s) => s.clearLoginEntryRequest);
-  const markLoginEntryAttemptStatus = useZCodeStore((s) => s.markLoginEntryAttemptStatus);
+  const user = useGCodeStore((s) => s.user);
+  const oauthError = useGCodeStore((s) => s.oauthError);
+  const setOAuthError = useGCodeStore((s) => s.setOAuthError);
+  const oauthSuccessSeq = useGCodeStore((s) => s.oauthSuccessSeq);
+  const lastOAuthSuccessProvider = useGCodeStore((s) => s.lastOAuthSuccessProvider);
+  const loginEntryRequest = useGCodeStore((s) => s.loginEntryRequest);
+  const clearLoginEntryRequest = useGCodeStore((s) => s.clearLoginEntryRequest);
+  const markLoginEntryAttemptStatus = useGCodeStore((s) => s.markLoginEntryAttemptStatus);
   const [loginMode, setLoginMode] = useState<"providers" | "apiKey">("providers");
   const wasActiveRef = useRef(active);
   const consumedLoginRequestRef = useRef<number | null>(null);
@@ -477,10 +477,10 @@ function LoginPanelLogo() {
     // 登录 logo 壳是固定深色底，边框不能跟随浅色主题 token，否则浅色主题下边框过重。
     <div
       className="relative mb-1 flex size-16 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#000000_0%,#151718_100%)] text-[#ffffff] shadow-lg/20 before:pointer-events-none before:absolute before:inset-0 before:rounded-2xl before:border before:border-[rgba(255,255,255,0.1)]"
-      aria-label="ZCode"
+      aria-label="GCode"
       role="img"
     >
-      <ZCodeAboutLogo className="h-auto w-10" />
+      <GCodeAboutLogo className="h-auto w-10" />
     </div>
   );
 }
@@ -508,7 +508,7 @@ function getLoginOAuthRegionTagMessageId(providerId: string): string | null {
 }
 
 function LoginOAuthRegionTag({ providerId }: { providerId: string }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useGCodeIntl();
   const messageId = getLoginOAuthRegionTagMessageId(providerId);
 
   if (!messageId) {

@@ -1,4 +1,4 @@
-import type { ConversationRow, WorkflowRunState } from "@zcode/shared/zcode-protocol-v4";
+import type { ConversationRow, WorkflowRunState } from "@gcode/shared/gcode-protocol-v4";
 import type { WorkflowCausalityGraphData } from "@/components/workflow-graph/types.js";
 import type { WorkflowRunCardSummary } from "@/ToolCallBlocks/shared.js";
 

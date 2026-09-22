@@ -4,19 +4,19 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import {
-  ZCODE_PROTOCOL_NAME,
-  ZCODE_PROTOCOL_VERSION,
-  zcodeSessionStateSnapshotSchema,
-  type ZCodeSessionStateSnapshot,
-} from "@zcode/shared";
+  GCODE_PROTOCOL_NAME,
+  GCODE_PROTOCOL_VERSION,
+  gcodeSessionStateSnapshotSchema,
+  type GCodeSessionStateSnapshot,
+} from "@gcode/shared";
 import { getLegacyTaskSessionSnapshotPath, setDataBaseDir } from "../src/paths.js";
 import { parseLegacyTaskSessionFile } from "../src/session/legacyTaskSessionFile.js";
 import { TaskIndexRepo } from "../src/session/taskIndexRepo.js";
-import { createZCodeTaskServiceAdapter } from "../src/zcode-agent/zcodeTaskServiceAdapter.js";
+import { createGCodeTaskServiceAdapter } from "../src/gcode-agent/gcodeTaskServiceAdapter.js";
 
 for (const clientMode of ["desktop-continuous", "web-remote-replayable"] as const) {
   test(`previously imported Claude history becomes a real session for ${clientMode}`, async () => {
-    const dir = await mkdtemp(join(tmpdir(), "zcode-import-recovery-"));
+    const dir = await mkdtemp(join(tmpdir(), "gcode-import-recovery-"));
     setDataBaseDir(dir);
     const meta = {
       taskId: "claude-import-example",
@@ -48,22 +48,22 @@ for (const clientMode of ["desktop-continuous", "web-remote-replayable"] as cons
     await writeFile(path, content);
     const taskIndexRepo = new TaskIndexRepo(join(dir, "tasks.sqlite"));
     await taskIndexRepo.syncTaskMeta({ meta });
-    type Options = Parameters<typeof createZCodeTaskServiceAdapter>[0];
-    type CreateInput = Parameters<Options["zcodeAgentService"]["createSession"]>[0];
+    type Options = Parameters<typeof createGCodeTaskServiceAdapter>[0];
+    type CreateInput = Parameters<Options["gcodeAgentService"]["createSession"]>[0];
     const created: CreateInput[] = [];
-    let session: ZCodeSessionStateSnapshot | undefined;
+    let session: GCodeSessionStateSnapshot | undefined;
     const disposable = () => ({ dispose() {} });
-    const service = createZCodeTaskServiceAdapter({
+    const service = createGCodeTaskServiceAdapter({
       taskIndexRepo,
-      zcodeAgentService: {
+      gcodeAgentService: {
         async resumeSession() {
           if (!session) throw new Error(`Session not found: ${meta.taskId}`);
           return session;
         },
         async createSession(input: CreateInput) {
           created.push(input);
-          session = zcodeSessionStateSnapshotSchema.parse({
-            protocol: { name: ZCODE_PROTOCOL_NAME, version: ZCODE_PROTOCOL_VERSION },
+          session = gcodeSessionStateSnapshotSchema.parse({
+            protocol: { name: GCODE_PROTOCOL_NAME, version: GCODE_PROTOCOL_VERSION },
             session: {
               sessionId: input.sessionId,
               workspace: {
@@ -101,7 +101,7 @@ for (const clientMode of ["desktop-continuous", "web-remote-replayable"] as cons
           return session;
         },
         disposeAll() {},
-      } as unknown as Options["zcodeAgentService"],
+      } as unknown as Options["gcodeAgentService"],
       taskIndexSyncer: {
         onSessionTerminalEvent: disposable,
         onSessionReadyEvent: disposable,

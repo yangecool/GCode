@@ -1,19 +1,19 @@
 import { Check, Download, Loader2, TriangleAlert } from "lucide-react";
 import type {
-  ZCodeImportSessionsResult,
-  ZCodeImportableSessionCandidate,
-  ZCodeImportedSessionSkippedItem,
-} from "@zcode/shared";
+  GCodeImportSessionsResult,
+  GCodeImportableSessionCandidate,
+  GCodeImportedSessionSkippedItem,
+} from "@gcode/shared";
 import type { ClaudeSessionMigrationSupportState } from "@/hooks/useClaudeSessionMigration.js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert.js";
 import { Badge } from "@/components/ui/badge.js";
 import { Button } from "@/components/ui/button.js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useGCodeIntl } from "@/i18n/IntlProvider.js";
 import { cn } from "@/components/lib/utils.js";
 
 function getKnownReasonLabel(
-  intl: ReturnType<typeof useZCodeIntl>["intl"],
+  intl: ReturnType<typeof useGCodeIntl>["intl"],
   reason: string,
 ): string {
   if (reason === "session_not_found_or_workspace_mismatch") {
@@ -30,9 +30,9 @@ function ImportIssuesList({
   items,
 }: {
   title: string;
-  items: ZCodeImportedSessionSkippedItem[];
+  items: GCodeImportedSessionSkippedItem[];
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useGCodeIntl();
 
   if (items.length === 0) {
     return null;
@@ -83,11 +83,11 @@ export function MigrationCandidatesCard({
   onImportSelected,
 }: {
   supportState: ClaudeSessionMigrationSupportState;
-  candidates: ZCodeImportableSessionCandidate[];
+  candidates: GCodeImportableSessionCandidate[];
   selectedSessionIds: string[];
   selectedCount: number;
   importError: string | null;
-  lastImportResult: ZCodeImportSessionsResult | null;
+  lastImportResult: GCodeImportSessionsResult | null;
   isImporting: boolean;
   dateTimeFormatter: Intl.DateTimeFormat;
   onToggleSelection: (sessionId: string) => void;
@@ -95,7 +95,7 @@ export function MigrationCandidatesCard({
   onClearSelection: () => void;
   onImportSelected: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useGCodeIntl();
 
   return (
     <Card className="border border-border bg-card py-0 shadow-none">

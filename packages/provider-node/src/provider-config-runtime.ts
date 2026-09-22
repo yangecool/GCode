@@ -2,49 +2,49 @@ import {
   ProviderConfigService,
   type ProviderConfigLayerSnapshot,
   type ProviderConfigLayerUpdate,
-} from "@zcode/provider";
-import { NodeZCodeBuiltinProviderConfigSource } from "./zcode-builtin-provider-config-source.js";
+} from "@gcode/provider";
+import { NodeGCodeBuiltinProviderConfigSource } from "./gcode-builtin-provider-config-source.js";
 import {
-  EndpointScopedZCodeBuiltinSource,
-  type EndpointScopedZCodeBuiltinSourceOptions,
-} from "./endpoint-scoped-zcode-builtin-source.js";
+  EndpointScopedGCodeBuiltinSource,
+  type EndpointScopedGCodeBuiltinSourceOptions,
+} from "./endpoint-scoped-gcode-builtin-source.js";
 import {
-  ZCodeBuiltinRemoteSynchronizer,
-  type ZCodeBuiltinRemoteSynchronizerOptions,
-  type ZCodeBuiltinRefreshResult,
-} from "./zcode-builtin-remote-synchronizer.js";
+  GCodeBuiltinRemoteSynchronizer,
+  type GCodeBuiltinRemoteSynchronizerOptions,
+  type GCodeBuiltinRefreshResult,
+} from "./gcode-builtin-remote-synchronizer.js";
 import {
   NodePersonalProviderConfigRepository,
   type PersonalProviderConfigRecoveryEvent,
 } from "./personal-provider-config-repository.js";
 
 export interface NodeProviderConfigRuntimeOptions {
-  readonly zcodeBuiltinFilePath: string;
-  readonly zcodeBuiltinActiveFilePath?: string;
-  readonly zcodeBuiltinRemote?: Omit<ZCodeBuiltinRemoteSynchronizerOptions, "source">;
-  readonly zcodeBuiltinEnvironment?: Omit<
-    EndpointScopedZCodeBuiltinSourceOptions,
+  readonly gcodeBuiltinFilePath: string;
+  readonly gcodeBuiltinActiveFilePath?: string;
+  readonly gcodeBuiltinRemote?: Omit<GCodeBuiltinRemoteSynchronizerOptions, "source">;
+  readonly gcodeBuiltinEnvironment?: Omit<
+    EndpointScopedGCodeBuiltinSourceOptions,
     "bundledFilePath"
   >;
-  readonly onZCodeBuiltinRefreshError?: (error: unknown) => void;
+  readonly onGCodeBuiltinRefreshError?: (error: unknown) => void;
   readonly onPersonalConfigRecovery?: (event: PersonalProviderConfigRecoveryEvent) => void;
   readonly onPersonalConfigPollingError?: (error: unknown) => void;
   readonly personalFilePath: string;
   readonly personalPollingIntervalMs?: number | false;
   readonly importLegacy?: (
-    zcodeBuiltin: ProviderConfigLayerSnapshot,
+    gcodeBuiltin: ProviderConfigLayerSnapshot,
   ) => Promise<ProviderConfigLayerUpdate | null>;
   readonly watch?: boolean;
 }
 
-/** 组装一个 Node.js 进程内共享的 ZCode Built-in/Personal Config 运行边界。 */
+/** 组装一个 Node.js 进程内共享的 GCode Built-in/Personal Config 运行边界。 */
 export class NodeProviderConfigRuntime {
   readonly configService: ProviderConfigService;
-  readonly #zcodeBuiltinSource:
-    | NodeZCodeBuiltinProviderConfigSource
-    | EndpointScopedZCodeBuiltinSource;
+  readonly #gcodeBuiltinSource:
+    | NodeGCodeBuiltinProviderConfigSource
+    | EndpointScopedGCodeBuiltinSource;
   readonly #personalRepository: NodePersonalProviderConfigRepository;
-  readonly #remoteSynchronizer?: ZCodeBuiltinRemoteSynchronizer;
+  readonly #remoteSynchronizer?: GCodeBuiltinRemoteSynchronizer;
   readonly #onRemoteRefreshError?: (error: unknown) => void;
   #startPromise: Promise<void> | null = null;
   #disposed = false;
@@ -53,25 +53,25 @@ export class NodeProviderConfigRuntime {
   #checkInFlight: Promise<void> | null = null;
 
   constructor(options: NodeProviderConfigRuntimeOptions) {
-    this.#zcodeBuiltinSource = options.zcodeBuiltinEnvironment
-      ? new EndpointScopedZCodeBuiltinSource({
-          bundledFilePath: options.zcodeBuiltinFilePath,
-          ...options.zcodeBuiltinEnvironment,
+    this.#gcodeBuiltinSource = options.gcodeBuiltinEnvironment
+      ? new EndpointScopedGCodeBuiltinSource({
+          bundledFilePath: options.gcodeBuiltinFilePath,
+          ...options.gcodeBuiltinEnvironment,
         })
-      : new NodeZCodeBuiltinProviderConfigSource({
-          bundledFilePath: options.zcodeBuiltinFilePath,
-          activeFilePath: options.zcodeBuiltinActiveFilePath,
+      : new NodeGCodeBuiltinProviderConfigSource({
+          bundledFilePath: options.gcodeBuiltinFilePath,
+          activeFilePath: options.gcodeBuiltinActiveFilePath,
           watch: options.watch,
         });
     this.#remoteSynchronizer =
-      options.zcodeBuiltinRemote &&
-      this.#zcodeBuiltinSource instanceof NodeZCodeBuiltinProviderConfigSource
-        ? new ZCodeBuiltinRemoteSynchronizer({
-            source: this.#zcodeBuiltinSource,
-            ...options.zcodeBuiltinRemote,
+      options.gcodeBuiltinRemote &&
+      this.#gcodeBuiltinSource instanceof NodeGCodeBuiltinProviderConfigSource
+        ? new GCodeBuiltinRemoteSynchronizer({
+            source: this.#gcodeBuiltinSource,
+            ...options.gcodeBuiltinRemote,
           })
         : undefined;
-    this.#onRemoteRefreshError = options.onZCodeBuiltinRefreshError;
+    this.#onRemoteRefreshError = options.onGCodeBuiltinRefreshError;
     this.#personalRepository = new NodePersonalProviderConfigRepository({
       filePath: options.personalFilePath,
       onRecovery: options.onPersonalConfigRecovery,
@@ -79,28 +79,28 @@ export class NodeProviderConfigRuntime {
       pollingIntervalMs: options.personalPollingIntervalMs,
       ...(options.importLegacy
         ? {
-            importLegacy: async () => options.importLegacy!(await this.#zcodeBuiltinSource.read()),
+            importLegacy: async () => options.importLegacy!(await this.#gcodeBuiltinSource.read()),
           }
         : {}),
     });
     this.configService = new ProviderConfigService({
-      zcodeBuiltinSource: this.#zcodeBuiltinSource,
+      gcodeBuiltinSource: this.#gcodeBuiltinSource,
       personalRepository: this.#personalRepository,
     });
   }
 
-  resolveZCodeBuiltinActiveFilePath(): Promise<string> {
-    return this.#zcodeBuiltinSource instanceof NodeZCodeBuiltinProviderConfigSource
-      ? Promise.resolve(this.#zcodeBuiltinSource.activeFilePath)
-      : this.#zcodeBuiltinSource.resolveActiveFilePath();
+  resolveGCodeBuiltinActiveFilePath(): Promise<string> {
+    return this.#gcodeBuiltinSource instanceof NodeGCodeBuiltinProviderConfigSource
+      ? Promise.resolve(this.#gcodeBuiltinSource.activeFilePath)
+      : this.#gcodeBuiltinSource.resolveActiveFilePath();
   }
 
-  get personalRepository(): import("@zcode/provider").PersonalProviderConfigRepository {
+  get personalRepository(): import("@gcode/provider").PersonalProviderConfigRepository {
     return this.#personalRepository;
   }
 
   /** Environment 同一周期检查中恢复未对齐依赖，不被下载 TTL 或失败挡住。 */
-  onDidCheckZCodeBuiltin(listener: () => Promise<void>): () => void {
+  onDidCheckGCodeBuiltin(listener: () => Promise<void>): () => void {
     this.#checkListeners.add(listener);
     return () => this.#checkListeners.delete(listener);
   }
@@ -114,7 +114,7 @@ export class NodeProviderConfigRuntime {
       // Managed Worker 无下载配置也无恢复 owner，不建立周期任务。
       if (
         this.#remoteSynchronizer ||
-        this.#zcodeBuiltinSource instanceof EndpointScopedZCodeBuiltinSource ||
+        this.#gcodeBuiltinSource instanceof EndpointScopedGCodeBuiltinSource ||
         this.#checkListeners.size > 0
       ) {
         this.#checkTimer = setInterval(() => {
@@ -130,10 +130,10 @@ export class NodeProviderConfigRuntime {
     return startPromise;
   }
 
-  refreshZCodeBuiltin(options?: { readonly force?: boolean }): Promise<ZCodeBuiltinRefreshResult> {
+  refreshGCodeBuiltin(options?: { readonly force?: boolean }): Promise<GCodeBuiltinRefreshResult> {
     if (this.#disposed) return Promise.resolve("disposed");
-    if (this.#zcodeBuiltinSource instanceof EndpointScopedZCodeBuiltinSource) {
-      return this.#zcodeBuiltinSource.refresh(options);
+    if (this.#gcodeBuiltinSource instanceof EndpointScopedGCodeBuiltinSource) {
+      return this.#gcodeBuiltinSource.refresh(options);
     }
     return this.#remoteSynchronizer?.refresh(options) ?? Promise.resolve("skipped");
   }
@@ -142,7 +142,7 @@ export class NodeProviderConfigRuntime {
     if (this.#disposed) return Promise.resolve();
     if (this.#checkInFlight) return this.#checkInFlight;
     const check = Promise.allSettled([
-      this.refreshZCodeBuiltin(),
+      this.refreshGCodeBuiltin(),
       ...[...this.#checkListeners].map((listener) => Promise.resolve().then(listener)),
     ])
       .then((results) => {
@@ -166,7 +166,7 @@ export class NodeProviderConfigRuntime {
     this.#remoteSynchronizer?.dispose();
     this.configService.dispose();
     this.#personalRepository.dispose();
-    this.#zcodeBuiltinSource.dispose();
+    this.#gcodeBuiltinSource.dispose();
   }
 }
 

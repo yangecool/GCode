@@ -22,7 +22,7 @@ import {
   type IChannelServer,
   LoggingChannelServer,
   NetworkTelemetryChannelServer,
-} from "@zcode/rpc";
+} from "@gcode/rpc";
 import { registerHostNetworkTelemetry, stopHostNetworkTelemetry } from "./hostNetworkTelemetry.js";
 import { registerHostServiceResourceTelemetry } from "./hostServiceResourceTelemetry.js";
 import { resolveResourceTelemetryEnvironmentKey } from "./hostResourceTelemetryEnvironment.js";
@@ -39,14 +39,14 @@ import {
   ISettingService,
   IWindowControllerService,
   IConversationShareService,
-  IZCodeAgentService,
-  IZCodeTaskService,
-  IZCodeSessionService,
+  IGCodeAgentService,
+  IGCodeTaskService,
+  IGCodeSessionService,
   ICuaPipSessionService,
-  createZCodeAgentConnectionScope,
-  type ZCodeAgentV4ClientMode,
+  createGCodeAgentConnectionScope,
+  type GCodeAgentV4ClientMode,
   collectServiceMemoryDiagnostics,
-} from "@zcode/services";
+} from "@gcode/services";
 import {
   createLocalServices,
   getOffPeakRequestAuthBuilder,
@@ -63,7 +63,7 @@ import {
   OffPeakPermanentDispatchError,
   type HostApiNetworkTransport,
   type OffPeakRequestAuthBuilder,
-} from "@zcode/services/node";
+} from "@gcode/services/node";
 import { createHostResourceUsageResponder } from "./hostResourceUsage.js";
 import {
   assertBoundSessionDispatchable,
@@ -72,9 +72,9 @@ import {
 import {
   HostMessageTypes,
   HostResponseTypes,
-  ZCODE_VERSION,
+  GCODE_VERSION,
   formatLogPrefix,
-  formatZCodeHostProcessName,
+  formatGCodeHostProcessName,
   formatZodError,
   buildRemoteWorkspaceIdentity,
   buildRemoteEnvironmentKey,
@@ -82,18 +82,18 @@ import {
   isRemoteWorkspaceIdentity,
   resolveWorkspaceKey,
   formatModelPickerValue,
-  type ZCodePromptAttachment,
-  type ZCodeStreamEvent,
-  type ZCodeTaskMeta,
+  type GCodePromptAttachment,
+  type GCodeStreamEvent,
+  type GCodeTaskMeta,
   type TaskStreamMirrorableEvent,
   type TraceId,
-  type ZCodeTaskMode,
+  type GCodeTaskMode,
   type WindowHostAttachmentScope,
-  type ZCodeAutomation,
-  type ZCodeAutomationRun,
-  type ZCodeAutomationRunOutcome,
+  type GCodeAutomation,
+  type GCodeAutomationRun,
+  type GCodeAutomationRunOutcome,
   type ModelSelection,
-} from "@zcode/shared";
+} from "@gcode/shared";
 import {
   parseHostIncomingMessageEvent,
   rejectUnavailableAttachedServicePort,
@@ -108,8 +108,8 @@ import type {
   RemoteRuntimeNetworkOptions,
   RemoteAssetNetworkPort,
   RemoteConnection,
-} from "@zcode/server/remote";
-import type { RemoteTarget } from "@zcode/shared";
+} from "@gcode/server/remote";
+import type { RemoteTarget } from "@gcode/shared";
 import { wrapElectronPort } from "./electronPort.js";
 import { createTaskRealtimeBridgeForHostInit } from "./taskRealtimeBridge.js";
 import { resolveRpcLogLevel } from "./rpcLogLevel.js";
@@ -147,7 +147,7 @@ import {
 } from "./windowRemoteConnectionRegistry.js";
 import { createWindowHostControllerRuntime } from "./windowHostControllerService.js";
 import { resolveAutomationSubmissionModelSelection } from "./automationModelSelection.js";
-import { createRemoteConnectionProgressContext } from "@zcode/server/remote/remoteConnectionProgressContext.js";
+import { createRemoteConnectionProgressContext } from "@gcode/server/remote/remoteConnectionProgressContext.js";
 import { startHostSelfResourceTelemetry } from "./hostSelfResourceTelemetry.js";
 type RemoteBackendHostConnection = RemoteConnection & {
   backend: IRemoteBackend;
@@ -173,7 +173,7 @@ const hostRemoteMediaRequestLimiter = {
   getState: () => ({ active: activeRemoteMediaRequests, limit: 4 }),
 };
 const remoteMediaRangePreviewEnabled =
-  process.env["ZCODE_REMOTE_MEDIA_RANGE_PREVIEW_ENABLED"] !== "0";
+  process.env["GCODE_REMOTE_MEDIA_RANGE_PREVIEW_ENABLED"] !== "0";
 
 type RemoteAssetDirs = Pick<
   ConnectOptions,
@@ -183,8 +183,8 @@ type RemoteAssetDirs = Pick<
 const { parentPort } = process;
 
 // 进程检索体验优化：host 由 utilityProcess 拉起时外壳仍是 Electron Helper，
-// 这里根据 main 传入的窗口 label 补一层稳定的 zcode-* title，方便系统进程列表过滤。
-process.title = formatZCodeHostProcessName(process.env["ZCODE_PROCESS_LABEL"]);
+// 这里根据 main 传入的窗口 label 补一层稳定的 gcode-* title，方便系统进程列表过滤。
+process.title = formatGCodeHostProcessName(process.env["GCODE_PROCESS_LABEL"]);
 
 type HostLogLevel = "info" | "warn" | "error";
 
@@ -300,7 +300,7 @@ const remoteConnectionProgressContext = createRemoteConnectionProgressContext({
 });
 
 function writeHostLog(level: HostLogLevel, ...args: unknown[]): void {
-  const prefix = formatLogPrefix("zcode-host", process.pid);
+  const prefix = formatLogPrefix("gcode-host", process.pid);
   const consoleFn =
     level === "error" ? rawConsole.error : level === "warn" ? rawConsole.warn : rawConsole.log;
   consoleFn(prefix, ...args);
@@ -323,7 +323,7 @@ function createFullFeedbackLogArchiveViaMain(
       onProgress: options?.onProgress,
     });
     // 问题反馈以前在 host service 内走 compactLogArchive 的 full fallback，
-    // 收集范围和“导出日志”不一致，缺少 zcode-cli 日志、rollout/debug 以及导出链路脱敏。
+    // 收集范围和“导出日志”不一致，缺少 gcode-cli 日志、rollout/debug 以及导出链路脱敏。
     // 这里把完整日志打包委托给 main process 的导出日志同源逻辑，host 只拿 zip 路径继续上传。
     try {
       parentPort.postMessage({
@@ -424,13 +424,13 @@ function disposeOffPeakRunSubscription(key: string): void {
 
 /** 终态回填 files_changed：复用现有 task diff 汇总（工具写盘型统计，Bash 改动不计入，接受）。 */
 async function resolveOffPeakFilesChanged(params: {
-  zcodeTaskService: IZCodeTaskService;
+  gcodeTaskService: IGCodeTaskService;
   taskId: string;
   workspacePath: string;
   workspaceIdentity?: string;
 }): Promise<number | undefined> {
   try {
-    const snapshot = await params.zcodeTaskService.getTaskSnapshot({
+    const snapshot = await params.gcodeTaskService.getTaskSnapshot({
       taskId: params.taskId,
       workspacePath: params.workspacePath,
       ...(params.workspaceIdentity ? { workspaceIdentity: params.workspaceIdentity } : {}),
@@ -447,12 +447,12 @@ async function resolveOffPeakFilesChanged(params: {
 
 /** loop 终态 → off_peak_tasks 终态：succeeded→completed、stopped→cancelled（用户手动停止）、其余→failed。 */
 async function finalizeOffPeakRun(params: {
-  zcodeTaskService: IZCodeTaskService;
+  gcodeTaskService: IGCodeTaskService;
   offPeakTaskId: string;
   taskId: string;
   workspacePath: string;
   workspaceIdentity?: string;
-  outcome: ZCodeAutomationRunOutcome;
+  outcome: GCodeAutomationRunOutcome;
   error?: string;
 }): Promise<void> {
   // 自动续跑：票据过期（active 3h 到期 / ready 废票）不是失败——
@@ -492,7 +492,7 @@ async function finalizeOffPeakRun(params: {
     `off-peak run finished task=${params.offPeakTaskId} status=${status} filesChanged=${filesChanged ?? "n/a"}`,
   );
   // 后台完成统一置未读，打开 task 时由导航链路清除（与 cron 同款）。
-  void params.zcodeTaskService.setTaskUnread({
+  void params.gcodeTaskService.setTaskUnread({
     taskId: params.taskId,
     workspacePath: params.workspacePath,
     ...(params.workspaceIdentity ? { workspaceIdentity: params.workspaceIdentity } : {}),
@@ -501,7 +501,7 @@ async function finalizeOffPeakRun(params: {
 }
 
 function trackOffPeakRunOutcome(params: {
-  zcodeTaskService: IZCodeTaskService;
+  gcodeTaskService: IGCodeTaskService;
   offPeakTaskId: string;
   taskId: string;
   traceId: TraceId;
@@ -510,12 +510,12 @@ function trackOffPeakRunOutcome(params: {
 }): void {
   const key = offPeakRunSubscriptionKey(params.taskId, params.traceId);
   disposeOffPeakRunSubscription(key);
-  const disposable = params.zcodeTaskService.onDynamicTaskTerminalOutcome(params.taskId)(
+  const disposable = params.gcodeTaskService.onDynamicTaskTerminalOutcome(params.taskId)(
     (result) => {
       if (result.inputId !== params.traceId) return;
       disposeOffPeakRunSubscription(key);
       void finalizeOffPeakRun({
-        zcodeTaskService: params.zcodeTaskService,
+        gcodeTaskService: params.gcodeTaskService,
         offPeakTaskId: params.offPeakTaskId,
         taskId: params.taskId,
         workspacePath: params.workspacePath,
@@ -537,9 +537,9 @@ async function dispatchOffPeakRun(request: OffPeakRunDispatchRequest): Promise<{
   conversationId: string;
   sessionId: string;
 }> {
-  const zcodeTaskService = activeServices?.getOptional(IZCodeTaskService);
-  if (!zcodeTaskService) {
-    throw new Error("ZCode task service is not initialized.");
+  const gcodeTaskService = activeServices?.getOptional(IGCodeTaskService);
+  if (!gcodeTaskService) {
+    throw new Error("GCode task service is not initialized.");
   }
   const runtime = await ensureOffPeakRuntime();
   if (!runtime) {
@@ -575,21 +575,21 @@ async function dispatchOffPeakRun(request: OffPeakRunDispatchRequest): Promise<{
         workspaceIdentity: request.workspaceIdentity,
       };
       const [deletedIds, tasks] = await Promise.all([
-        zcodeTaskService.listDeletedTaskIds(workspaceScope),
-        zcodeTaskService.listTasks(workspaceScope),
+        gcodeTaskService.listDeletedTaskIds(workspaceScope),
+        gcodeTaskService.listTasks(workspaceScope),
       ]);
       assertBoundSessionDispatchable({
         sessionId: taskId,
         deleted: deletedIds.includes(taskId),
         running: tasks.find((task) => task.taskId === taskId)?.status === "running",
       });
-      await zcodeTaskService.resumeTask({
+      await gcodeTaskService.resumeTask({
         ...workspaceScope,
         taskId,
         // 绑定会话首次盖章归属标记，侧栏归入闲时分组（机制同 cron targetTaskId）。
         offPeakTaskId: request.offPeakTaskId,
       });
-      await zcodeTaskService.setConfigOption({
+      await gcodeTaskService.setConfigOption({
         taskId,
         traceId,
         configId: "mode",
@@ -602,7 +602,7 @@ async function dispatchOffPeakRun(request: OffPeakRunDispatchRequest): Promise<{
       // 不能复用 task ID，也不能依赖同毫秒时间戳避免碰撞。
       traceId = `${request.offPeakTaskId}:resume:${randomUUID()}` as TraceId;
       promptContent = OFF_PEAK_RESUME_PROMPT;
-      await zcodeTaskService.resumeTask({
+      await gcodeTaskService.resumeTask({
         taskId,
         workspacePath: request.workspacePath,
         workspaceIdentity: request.workspaceIdentity,
@@ -610,7 +610,7 @@ async function dispatchOffPeakRun(request: OffPeakRunDispatchRequest): Promise<{
         offPeakTaskId: request.offPeakTaskId,
       });
       // 权限模式随派发下发（resume 后显式设置，幂等）。
-      await zcodeTaskService.setConfigOption({
+      await gcodeTaskService.setConfigOption({
         taskId,
         traceId,
         configId: "mode",
@@ -618,12 +618,12 @@ async function dispatchOffPeakRun(request: OffPeakRunDispatchRequest): Promise<{
       });
       // 档位是 idle Selection 的一部分，只在 sendPrompt 注入；单独写档位会污染用户会话。
     } else {
-      const task = await zcodeTaskService.createTask({
+      const task = await gcodeTaskService.createTask({
         workspacePath: request.workspacePath,
         workspaceIdentity: request.workspaceIdentity,
         // 空 Session 沿用普通初始化；idle Selection 只在下方执行中注入。
         // 在此写入会让闲时轮结束后的普通消息继续使用无票的隐藏 Provider。
-        mode: request.permissionMode as ZCodeTaskMode,
+        mode: request.permissionMode as GCodeTaskMode,
         // 闲时任务是无界面的 createTask + sendPrompt 连续派发；空 session 必须在首条
         // V4 admission 内先持久化，否则 session_input 外键会先于 session 主记录写入。
         deferPersistenceUntilFirstPrompt: true,
@@ -635,14 +635,14 @@ async function dispatchOffPeakRun(request: OffPeakRunDispatchRequest): Promise<{
     }
     trackedKey = offPeakRunSubscriptionKey(taskId, traceId);
     trackOffPeakRunOutcome({
-      zcodeTaskService,
+      gcodeTaskService,
       offPeakTaskId: request.offPeakTaskId,
       taskId,
       traceId,
       workspacePath: request.workspacePath,
       ...(request.workspaceIdentity ? { workspaceIdentity: request.workspaceIdentity } : {}),
     });
-    await zcodeTaskService.sendPrompt({
+    await gcodeTaskService.sendPrompt({
       taskId,
       traceId,
       content: promptContent,
@@ -687,7 +687,7 @@ interface CronRunDispatchRequest {
   prompt: string;
   targetTaskId?: string;
   modelSelection?: ModelSelection;
-  mode?: ZCodeTaskMode;
+  mode?: GCodeTaskMode;
   workspacePath: string;
   workspaceIdentity?: string;
 }
@@ -736,7 +736,7 @@ function markCronRunOutcome(params: {
   workspaceKey: string;
   scheduledAt: number | null;
   trigger: "schedule" | "manual";
-  outcome: ZCodeAutomationRunOutcome;
+  outcome: GCodeAutomationRunOutcome;
   error?: string;
 }): void {
   void recordCronRunOutcomeBestEffort({
@@ -754,7 +754,7 @@ function disposeCronRunSubscription(key: string): void {
 }
 
 async function applyCronRunConfigToExistingTask(params: {
-  zcodeTaskService: IZCodeTaskService;
+  gcodeTaskService: IGCodeTaskService;
   taskId: string;
   traceId: TraceId;
   modelSelection?: ModelSelection;
@@ -763,18 +763,18 @@ async function applyCronRunConfigToExistingTask(params: {
   let thoughtAppliedWithModel = false;
   let modeAppliedWithModel = false;
   if (params.modelSelection) {
-    await params.zcodeTaskService.setAutomationSessionConfig({
+    await params.gcodeTaskService.setAutomationSessionConfig({
       taskId: params.taskId,
       traceId: params.traceId,
       modelSelection: params.modelSelection,
       thoughtLevel: params.modelSelection.options?.reasoningLevel,
-      mode: params.mode?.trim() as ZCodeTaskMode | undefined,
+      mode: params.mode?.trim() as GCodeTaskMode | undefined,
     });
     thoughtAppliedWithModel = true;
     modeAppliedWithModel = true;
   }
   if (!modeAppliedWithModel && params.mode?.trim()) {
-    await params.zcodeTaskService.setConfigOption({
+    await params.gcodeTaskService.setConfigOption({
       taskId: params.taskId,
       traceId: params.traceId,
       configId: "mode",
@@ -782,7 +782,7 @@ async function applyCronRunConfigToExistingTask(params: {
     });
   }
   if (!thoughtAppliedWithModel && params.modelSelection?.options?.reasoningLevel) {
-    await params.zcodeTaskService.setConfigOption({
+    await params.gcodeTaskService.setConfigOption({
       taskId: params.taskId,
       traceId: params.traceId,
       configId: "thought_level",
@@ -792,7 +792,7 @@ async function applyCronRunConfigToExistingTask(params: {
 }
 
 function trackCronRunOutcome(params: {
-  zcodeTaskService: IZCodeTaskService;
+  gcodeTaskService: IGCodeTaskService;
   taskId: string;
   traceId: TraceId;
   workspacePath: string;
@@ -806,7 +806,7 @@ function trackCronRunOutcome(params: {
   const key = cronRunSubscriptionKey(params.taskId, params.traceId);
   disposeCronRunSubscription(key);
   markCronRunOutcome({ ...params, outcome: "running" });
-  const disposable = params.zcodeTaskService.onDynamicTaskTerminalOutcome(params.taskId)(
+  const disposable = params.gcodeTaskService.onDynamicTaskTerminalOutcome(params.taskId)(
     (result) => {
       if (result.inputId !== params.traceId) return;
       void settleCronRunTerminalOutcome({
@@ -817,7 +817,7 @@ function trackCronRunOutcome(params: {
         logWarn: (message, error) => logger.warn(message, error),
       });
       // 定时任务在后台完成后统一置为未读，真正打开 task 时再由导航链路清除。
-      void params.zcodeTaskService.setTaskUnread({
+      void params.gcodeTaskService.setTaskUnread({
         taskId: params.taskId,
         workspacePath: params.workspacePath,
         ...(params.workspaceIdentity ? { workspaceIdentity: params.workspaceIdentity } : {}),
@@ -851,9 +851,9 @@ async function dispatchCronRun(request: CronRunDispatchRequest): Promise<{
   sessionId: string;
 }> {
   const targetServices = resolveAutomationTargetServices(request);
-  const zcodeTaskService = targetServices.getOptional(IZCodeTaskService);
-  if (!zcodeTaskService) {
-    throw new Error("ZCode task service is not initialized.");
+  const gcodeTaskService = targetServices.getOptional(IGCodeTaskService);
+  if (!gcodeTaskService) {
+    throw new Error("GCode task service is not initialized.");
   }
   const modelSelectionService = targetServices.getOptional(IModelSelectionService);
   if (!modelSelectionService) {
@@ -885,7 +885,7 @@ async function dispatchCronRun(request: CronRunDispatchRequest): Promise<{
   try {
     const task = request.targetTaskId
       ? { taskId: request.targetTaskId }
-      : await zcodeTaskService.createTask({
+      : await gcodeTaskService.createTask({
           workspacePath: request.workspacePath,
           workspaceIdentity: request.workspaceIdentity,
           model: formatModelPickerValue(submissionModelSelection),
@@ -900,7 +900,7 @@ async function dispatchCronRun(request: CronRunDispatchRequest): Promise<{
     if (request.targetTaskId) {
       // 绑定会话在 app 重启或切换 workspace 后通常不处于 active；旧实现直接
       // setConfig/sendPrompt 会立即报 Session is not active，看起来像「立即运行」没有触发。
-      await zcodeTaskService.resumeTask({
+      await gcodeTaskService.resumeTask({
         taskId: task.taskId,
         workspacePath: request.workspacePath,
         workspaceIdentity: request.workspaceIdentity,
@@ -909,7 +909,7 @@ async function dispatchCronRun(request: CronRunDispatchRequest): Promise<{
         automationId: request.automationId,
       });
       await applyCronRunConfigToExistingTask({
-        zcodeTaskService,
+        gcodeTaskService,
         taskId: task.taskId,
         traceId: promptTraceId,
         modelSelection: submissionModelSelection,
@@ -918,7 +918,7 @@ async function dispatchCronRun(request: CronRunDispatchRequest): Promise<{
     }
     trackedKey = cronRunSubscriptionKey(task.taskId, promptTraceId);
     trackCronRunOutcome({
-      zcodeTaskService,
+      gcodeTaskService,
       taskId: task.taskId,
       traceId: promptTraceId,
       workspacePath: request.workspacePath,
@@ -929,7 +929,7 @@ async function dispatchCronRun(request: CronRunDispatchRequest): Promise<{
       scheduledAt,
       trigger,
     });
-    await zcodeTaskService.sendPrompt({
+    await gcodeTaskService.sendPrompt({
       taskId: task.taskId,
       traceId: promptTraceId,
       content: request.prompt,
@@ -962,8 +962,8 @@ async function dispatchCronRun(request: CronRunDispatchRequest): Promise<{
 }
 
 async function dispatchManualAutomationRun(params: {
-  automation: ZCodeAutomation;
-  run: ZCodeAutomationRun;
+  automation: GCodeAutomation;
+  run: GCodeAutomationRun;
 }): Promise<void> {
   logger.info(
     `direct manual automation dispatch started automation=${params.automation.automationId} runId=${params.run.runId}`,
@@ -1119,7 +1119,7 @@ const workspaceTaskTracker = createHostWorkspaceTaskTracker((event) => {
   reportHostRunningTaskCount();
 });
 
-function isZCodeTaskMeta(value: unknown): value is ZCodeTaskMeta {
+function isGCodeTaskMeta(value: unknown): value is GCodeTaskMeta {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -1133,12 +1133,12 @@ function isZCodeTaskMeta(value: unknown): value is ZCodeTaskMeta {
 }
 
 function isRemoteMirrorableStreamEvent(
-  event: ZCodeStreamEvent,
+  event: GCodeStreamEvent,
 ): event is TaskStreamMirrorableEvent {
   return event.type !== "task_stream_mirror_batch" && event.type !== "task_snapshot_updated";
 }
 
-function createReportingRemoteZCodeTaskService<T extends object>(
+function createReportingRemoteGCodeTaskService<T extends object>(
   service: T,
   options?: {
     reportRunningPromptCount?: boolean;
@@ -1147,8 +1147,8 @@ function createReportingRemoteZCodeTaskService<T extends object>(
       taskId: string;
       traceId: TraceId;
       content: string;
-      attachments?: ZCodePromptAttachment[];
-    }) => Promise<{ content: string; attachments?: ZCodePromptAttachment[] }>;
+      attachments?: GCodePromptAttachment[];
+    }) => Promise<{ content: string; attachments?: GCodePromptAttachment[] }>;
   },
 ): T {
   const workspaceProxyState = createHostRemoteWorkspaceProxyState();
@@ -1160,7 +1160,7 @@ function createReportingRemoteZCodeTaskService<T extends object>(
     });
   }
 
-  function subscribeSessionMessageRequests(target: T, meta: ZCodeTaskMeta): void {
+  function subscribeSessionMessageRequests(target: T, meta: GCodeTaskMeta): void {
     const onDynamicWorkspaceEvent = Reflect.get(target, "onDynamicWorkspaceEvent");
     if (typeof onDynamicWorkspaceEvent !== "function") {
       return;
@@ -1186,7 +1186,7 @@ function createReportingRemoteZCodeTaskService<T extends object>(
   }
 
   function rememberTaskMeta(result: unknown): void {
-    if (isZCodeTaskMeta(result)) {
+    if (isGCodeTaskMeta(result)) {
       workspaceProxyState.rememberTaskMeta(result);
       subscribeSessionMessageRequests(service, result);
       parentPort?.postMessage({
@@ -1226,12 +1226,12 @@ function createReportingRemoteZCodeTaskService<T extends object>(
     taskId: string;
     traceId: TraceId;
     content: string;
-    attachments?: ZCodePromptAttachment[];
+    attachments?: GCodePromptAttachment[];
   }): Promise<{
     taskId: string;
     traceId: TraceId;
     content: string;
-    attachments?: ZCodePromptAttachment[];
+    attachments?: GCodePromptAttachment[];
   }> {
     if (!options?.materializePromptAttachments) {
       return params;
@@ -1249,7 +1249,7 @@ function createReportingRemoteZCodeTaskService<T extends object>(
       taskId: string;
       traceId: TraceId;
       content: string;
-      attachments?: ZCodePromptAttachment[];
+      attachments?: GCodePromptAttachment[];
     },
   ): Promise<unknown> {
     const taskRealtimePort = options?.taskRealtimePort;
@@ -1286,10 +1286,10 @@ function createReportingRemoteZCodeTaskService<T extends object>(
 
     // 写路径（send/stop/交互回执）已收敛 v4 命令面；本镜像属**读路径**——
     // taskRealtimePort → 手机 relay → 手机端
-    // zcodeSessionStore 的整条消费链词表都是 ZCodeStreamEvent。两个方案的评估结论：
+    // gcodeSessionStore 的整条消费链词表都是 GCodeStreamEvent。两个方案的评估结论：
     // a) relay 直接转发 v4 帧、手机端消费 v4 store（正解）：需要重做 relay stream-op
     //    协议 + 手机端 store；
-    // b) 帧→ZCodeStreamEvent 薄映射：等价复刻 adapter mapSessionEvent，
+    // b) 帧→GCodeStreamEvent 薄映射：等价复刻 adapter mapSessionEvent，
     //    否决。
     // 结论：本镜像保持 legacy 源不动。
     const dynamicStreamEvent = Reflect.get(target, "onDynamicStreamEvent");
@@ -1298,7 +1298,7 @@ function createReportingRemoteZCodeTaskService<T extends object>(
         ? dynamicStreamEvent.call(
             target,
             params.taskId,
-          )((event: ZCodeStreamEvent) => {
+          )((event: GCodeStreamEvent) => {
             if (isRemoteMirrorableStreamEvent(event)) {
               taskRealtimePort.publishStreamOp(mirrorTarget, {
                 kind: "stream_event",
@@ -1311,19 +1311,19 @@ function createReportingRemoteZCodeTaskService<T extends object>(
     try {
       return await sendPrompt.call(target, params);
     } finally {
-      // 远端 zcode-server 没有 desktop realtime port；由窗口 Host 内的
+      // 远端 gcode-server 没有 desktop realtime port；由窗口 Host 内的
       // remote facade 接管 lease 和 stream mirror，确保 UI 能持续收到远端会话流。
       streamDisposable?.dispose();
       taskRealtimePort.releaseTaskRunLease(mirrorTarget);
     }
   }
 
-  function finishWorkspaceTask(taskId: string, meta: ZCodeTaskMeta): void {
+  function finishWorkspaceTask(taskId: string, meta: GCodeTaskMeta): void {
     workspaceProxyState.disposeTaskReadySubscription(taskId);
     workspaceTaskTracker.finish(taskId, meta);
   }
 
-  function beginWorkspaceTask(target: T, taskId: string, meta: ZCodeTaskMeta): boolean {
+  function beginWorkspaceTask(target: T, taskId: string, meta: GCodeTaskMeta): boolean {
     const started = workspaceTaskTracker.begin(taskId, meta);
     if (!started) {
       return false;
@@ -1331,12 +1331,12 @@ function createReportingRemoteZCodeTaskService<T extends object>(
     const onDynamicTaskReady = Reflect.get(target, "onDynamicTaskReady");
     if (typeof onDynamicTaskReady !== "function") {
       workspaceTaskTracker.finish(taskId, meta);
-      throw new Error("remote ZCode task service does not expose onDynamicTaskReady");
+      throw new Error("remote GCode task service does not expose onDynamicTaskReady");
     }
     const subscribe = onDynamicTaskReady.call(target, taskId);
     if (typeof subscribe !== "function") {
       workspaceTaskTracker.finish(taskId, meta);
-      throw new Error("remote ZCode task ready event is not subscribable");
+      throw new Error("remote GCode task ready event is not subscribable");
     }
     workspaceProxyState.trackTaskReady(
       taskId,
@@ -1347,7 +1347,7 @@ function createReportingRemoteZCodeTaskService<T extends object>(
     return true;
   }
 
-  // remote workspace 的 ZCode Agent manager 跑在远端 server，desktop main 不能直接看到
+  // remote workspace 的 GCode Agent manager 跑在远端 server，desktop main 不能直接看到
   // `handles` 状态。sendPrompt Promise 只是远端 ACK，必须等待 task ready 才能允许回收 workspace。
   return new Proxy(service, {
     get(target, property, receiver) {
@@ -1405,7 +1405,7 @@ function createReportingRemoteZCodeTaskService<T extends object>(
       }
 
       return async (...args: unknown[]) => {
-        let trackedTask: { taskId: string; meta: ZCodeTaskMeta; started: boolean } | undefined;
+        let trackedTask: { taskId: string; meta: GCodeTaskMeta; started: boolean } | undefined;
         let tracksOnlyRpcLifetime = false;
         try {
           const params = args[0];
@@ -1420,10 +1420,10 @@ function createReportingRemoteZCodeTaskService<T extends object>(
               taskId: string;
               traceId: TraceId;
               content: string;
-              attachments?: ZCodePromptAttachment[];
+              attachments?: GCodePromptAttachment[];
             };
             const taskMeta = workspaceProxyState.getTaskMeta(promptParams.taskId) as
-              | ZCodeTaskMeta
+              | GCodeTaskMeta
               | undefined;
             if (taskMeta) {
               trackedTask = {
@@ -1467,7 +1467,7 @@ function createReportingRemoteZCodeTaskService<T extends object>(
   });
 }
 
-function warmUpZCodeAgent(
+function warmUpGCodeAgent(
   services: ServiceCollection,
   context: { workspacePath?: string; workspaceIdentity?: string },
   reason: string,
@@ -1477,11 +1477,11 @@ function warmUpZCodeAgent(
   }
   const workspacePath = context.workspacePath;
   const workspaceIdentity = context.workspaceIdentity;
-  const zcodeSessionService = services.getOptional(IZCodeSessionService);
-  if (!zcodeSessionService) {
+  const gcodeSessionService = services.getOptional(IGCodeSessionService);
+  if (!gcodeSessionService) {
     return;
   }
-  void zcodeSessionService
+  void gcodeSessionService
     .initializeWorkspace({
       workspacePath,
       ...(workspaceIdentity ? { workspaceIdentity } : {}),
@@ -1490,12 +1490,12 @@ function warmUpZCodeAgent(
       if (!result.available) {
         if (result.reasonCode === "provider_not_ready") {
           logger.info(
-            `ZCode agent warmup waiting for provider/model (${reason}) workspace=${workspacePath}`,
+            `GCode agent warmup waiting for provider/model (${reason}) workspace=${workspacePath}`,
           );
           return;
         }
         logger.warn(
-          `ZCode agent warmup unavailable (${reason}) workspace=${workspacePath} reason=${result.reason ?? "unknown"}`,
+          `GCode agent warmup unavailable (${reason}) workspace=${workspacePath} reason=${result.reason ?? "unknown"}`,
         );
         return;
       }
@@ -1503,11 +1503,11 @@ function warmUpZCodeAgent(
       // presentation 只剩 mode 与 slash commands。预热不能为读取 presentation 额外创建
       // Agent App，否则其 MCP close 会占住协议通道并阻塞真正的 Session 初始化。
       logger.info(
-        `ZCode agent warmup ready (${reason}) workspace=${workspacePath} transport=${result.transportKind ?? "unknown"}`,
+        `GCode agent warmup ready (${reason}) workspace=${workspacePath} transport=${result.transportKind ?? "unknown"}`,
       );
     })
     .catch((error) => {
-      logger.warn(`ZCode agent warmup failed (${reason}) workspace=${workspacePath}:`, error);
+      logger.warn(`GCode agent warmup failed (${reason}) workspace=${workspacePath}:`, error);
     });
 }
 
@@ -1569,7 +1569,7 @@ let activeHostApiNetworkTransport: HostApiNetworkTransport | null = null;
 let activeLocalResourceTelemetry: IDisposable | null = null;
 // 资源管理器采样只在 main 请求时执行一次，Host 不维护任何周期定时器。
 const hostResourceUsageResponder = createHostResourceUsageResponder({
-  getAgentService: () => activeServices?.getOptional(IZCodeAgentService),
+  getAgentService: () => activeServices?.getOptional(IGCodeAgentService),
   postMessage: (message) => parentPort?.postMessage(message),
 });
 let activeSessionRealtimePort: ReturnType<typeof createTaskRealtimeBridgeForHostInit> = null;
@@ -1647,7 +1647,7 @@ async function createWindowRemoteConnectionHandle(params: {
     taskId: string;
     traceId: TraceId | string;
     content: string;
-    attachments?: ZCodePromptAttachment[];
+    attachments?: GCodePromptAttachment[];
   }) => {
     const result = await materializeRemotePromptAttachments(request, {
       backend: backendConnection.backend,
@@ -1674,8 +1674,8 @@ async function createWindowRemoteConnectionHandle(params: {
       createRemotePromptAttachmentTaskService(service, {
         materializePromptAttachments,
       }),
-    createReportingRemoteZCodeTaskService: (service) =>
-      createReportingRemoteZCodeTaskService(service, {
+    createReportingRemoteGCodeTaskService: (service) =>
+      createReportingRemoteGCodeTaskService(service, {
         taskRealtimePort: activeSessionRealtimePort ?? undefined,
       }),
     promptAttachmentTransferService,
@@ -1685,7 +1685,7 @@ async function createWindowRemoteConnectionHandle(params: {
   });
 
   let disposed = false;
-  // 远端 workspace 的 CLI 与 MCP 样本走与本地同一条路径：远端 zcode-server → 本地 Host → main。
+  // 远端 workspace 的 CLI 与 MCP 样本走与本地同一条路径：远端 gcode-server → 本地 Host → main。
   // 订阅寿命等于这份远端 services 的寿命：由 connection handle 持有，registry 释放 entry
   // （WSL idle 回收、最后一个 logical session 关闭、掉线后的 session 清理）时随 dispose 一起收口。
   const resourceTelemetry = registerHostServiceResourceTelemetry({
@@ -1742,7 +1742,7 @@ const windowRemoteConnectionRegistry = createWindowRemoteConnectionRegistry<
   connect: (request) => createWindowRemoteConnectionHandle(request),
   createId: randomUUID,
   releaseWorkspace: async (services, context) => {
-    await services.get(IZCodeTaskService).releaseWorkspacePreparation({
+    await services.get(IGCodeTaskService).releaseWorkspacePreparation({
       workspacePath: context.workspacePath,
       ...(context.workspaceIdentity ? { workspaceIdentity: context.workspaceIdentity } : {}),
       provider: "glm",
@@ -1805,8 +1805,8 @@ const windowHostControllerRuntime = createWindowHostControllerRuntime({
       const services = windowRemoteConnectionRegistry.resolveScopedServices(controllerScope);
       return {
         scope: controllerScope,
-        taskService: services.get(IZCodeTaskService),
-        agentService: services.getOptional(IZCodeAgentService),
+        taskService: services.get(IGCodeTaskService),
+        agentService: services.getOptional(IGCodeAgentService),
         sourceAvailability: "online" as const,
       };
     }
@@ -1814,7 +1814,7 @@ const windowHostControllerRuntime = createWindowHostControllerRuntime({
     if (scope.workspaceIdentity && isRemoteWorkspaceIdentity(scope.workspaceIdentity)) {
       return null;
     }
-    const taskService = activeServices?.getOptional(IZCodeTaskService);
+    const taskService = activeServices?.getOptional(IGCodeTaskService);
     if (!taskService) {
       return null;
     }
@@ -1825,7 +1825,7 @@ const windowHostControllerRuntime = createWindowHostControllerRuntime({
         ...(scope.workspaceIdentity ? { workspaceIdentity: scope.workspaceIdentity } : {}),
       },
       taskService,
-      agentService: activeServices?.getOptional(IZCodeAgentService),
+      agentService: activeServices?.getOptional(IGCodeAgentService),
       sourceAvailability: "online" as const,
     };
   },
@@ -1857,9 +1857,9 @@ type ExposedServicePortHandle = {
 };
 
 function createControllerRoutedTaskService(
-  base: IZCodeTaskService,
+  base: IGCodeTaskService,
   attachmentScope: WindowHostAttachmentScope,
-): IZCodeTaskService {
+): IGCodeTaskService {
   const route = async (
     params: {
       taskId: string;
@@ -1886,7 +1886,7 @@ function createControllerRoutedTaskService(
   return new Proxy(base, {
     get(target, property, receiver) {
       if (property === "setTaskPinned") {
-        return async (params: Parameters<IZCodeTaskService["setTaskPinned"]>[0]) => {
+        return async (params: Parameters<IGCodeTaskService["setTaskPinned"]>[0]) => {
           const meta = await route(params, { kind: "pin", pinned: params.pinned });
           if (!meta) throw new Error("pin mutation 后 task 投影缺失");
           return meta;
@@ -1895,8 +1895,8 @@ function createControllerRoutedTaskService(
       if (property === "archiveTask" || property === "unarchiveTask") {
         return async (
           params:
-            | Parameters<IZCodeTaskService["archiveTask"]>[0]
-            | Parameters<IZCodeTaskService["unarchiveTask"]>[0],
+            | Parameters<IGCodeTaskService["archiveTask"]>[0]
+            | Parameters<IGCodeTaskService["unarchiveTask"]>[0],
         ) => {
           const meta = await route(params, {
             kind: "archive",
@@ -1907,12 +1907,12 @@ function createControllerRoutedTaskService(
         };
       }
       if (property === "deleteTask") {
-        return async (params: Parameters<IZCodeTaskService["deleteTask"]>[0]) => {
+        return async (params: Parameters<IGCodeTaskService["deleteTask"]>[0]) => {
           await route(params, { kind: "delete" });
         };
       }
       if (property === "deleteArchivedTasks") {
-        return async (params: Parameters<IZCodeTaskService["deleteArchivedTasks"]>[0]) => {
+        return async (params: Parameters<IGCodeTaskService["deleteArchivedTasks"]>[0]) => {
           if (params.taskIds.length === 0) {
             return { deletedTaskIds: [], skippedTaskIds: [], failedTaskIds: [] };
           }
@@ -1929,7 +1929,7 @@ function createControllerRoutedTaskService(
         };
       }
       if (property === "deleteArchivedTask") {
-        return async (params: Parameters<IZCodeTaskService["deleteArchivedTask"]>[0]) =>
+        return async (params: Parameters<IGCodeTaskService["deleteArchivedTask"]>[0]) =>
           windowHostControllerRuntime.service.deleteArchivedTask({
             address: await windowHostControllerRuntime.resolveTaskAddress({
               ...params,
@@ -1939,7 +1939,7 @@ function createControllerRoutedTaskService(
           });
       }
       if (property === "setTaskUnread") {
-        return async (params: Parameters<IZCodeTaskService["setTaskUnread"]>[0]) => {
+        return async (params: Parameters<IGCodeTaskService["setTaskUnread"]>[0]) => {
           const meta = await route(
             params,
             params.unread
@@ -1965,7 +1965,7 @@ function exposeServicesOnMessagePort(
   port: Electron.MessagePortMain,
   services: ServiceCollection,
   deferInit: boolean,
-  clientMode: ZCodeAgentV4ClientMode = "desktop-continuous",
+  clientMode: GCodeAgentV4ClientMode = "desktop-continuous",
   attachmentScope: WindowHostAttachmentScope = { kind: "local" },
   capabilities?: HostRemoteConnectionCapabilities,
 ): ExposedServicePortHandle {
@@ -1978,9 +1978,9 @@ function exposeServicesOnMessagePort(
   const rawServer = new ChannelServer(protocol, "host", 1000, deferInit);
   const loggedServer = new LoggingChannelServer(rawServer, logRpc);
   const server = new NetworkTelemetryChannelServer(loggedServer);
-  const agentService = services.getOptional(IZCodeAgentService);
+  const agentService = services.getOptional(IGCodeAgentService);
   const connectionScope = agentService
-    ? createZCodeAgentConnectionScope(agentService, {
+    ? createGCodeAgentConnectionScope(agentService, {
         connectionId: `host-rpc-${randomUUID()}`,
         clientMode,
       })
@@ -1998,15 +1998,15 @@ function exposeServicesOnMessagePort(
   if (remoteMediaPreviewProxy) {
     overrides.set(IMediaPreviewService.channelName, remoteMediaPreviewProxy.service);
   }
-  const taskService = services.getOptional(IZCodeTaskService);
+  const taskService = services.getOptional(IGCodeTaskService);
   if (taskService) {
     overrides.set(
-      IZCodeTaskService.channelName,
+      IGCodeTaskService.channelName,
       createControllerRoutedTaskService(taskService, attachmentScope),
     );
   }
   if (connectionScope) {
-    overrides.set(IZCodeAgentService.channelName, connectionScope.service);
+    overrides.set(IGCodeAgentService.channelName, connectionScope.service);
   }
   const conversationShareService = services.getOptional(IConversationShareService);
   if (conversationShareService) {
@@ -2351,7 +2351,7 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
       try {
         const dispatchResult = await dispatchCronRun({
           ...msg,
-          mode: msg.mode as ZCodeTaskMode | undefined,
+          mode: msg.mode as GCodeTaskMode | undefined,
         });
         parentPort.postMessage({
           type: HostResponseTypes.CronRunResult,
@@ -2429,12 +2429,12 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
   }
 
   if (msg.type === HostMessageTypes.SessionMessageDeliver) {
-    const zcodeTaskService = activeServices?.getOptional(IZCodeTaskService);
-    if (!zcodeTaskService) {
+    const gcodeTaskService = activeServices?.getOptional(IGCodeTaskService);
+    if (!gcodeTaskService) {
       parentPort.postMessage({
         type: HostResponseTypes.SessionMessageDeliverResult,
         result: {
-          error: "ZCode task service is not initialized.",
+          error: "GCode task service is not initialized.",
           messageId: msg.request.messageId,
           requestId: msg.request.requestId,
           sessionId: msg.request.fromSessionId,
@@ -2444,7 +2444,7 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
       return;
     }
 
-    void zcodeTaskService
+    void gcodeTaskService
       .deliverSessionMessage(msg.request)
       .then((deliveryResult) => {
         parentPort.postMessage({
@@ -2468,12 +2468,12 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
   }
 
   if (msg.type === HostMessageTypes.SessionMessageDeliveryResult) {
-    const zcodeTaskService = activeServices?.getOptional(IZCodeTaskService);
-    if (!zcodeTaskService) {
-      logger.warn("session message delivery result received before ZCode task service initialized");
+    const gcodeTaskService = activeServices?.getOptional(IGCodeTaskService);
+    if (!gcodeTaskService) {
+      logger.warn("session message delivery result received before GCode task service initialized");
       return;
     }
-    void zcodeTaskService.sendSessionMessageDeliveryResult(msg.result).catch((error) => {
+    void gcodeTaskService.sendSessionMessageDeliveryResult(msg.result).catch((error) => {
       logger.warn("failed to forward session message delivery result:", error);
     });
     return;
@@ -2579,7 +2579,7 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
               const services = windowRemoteConnectionRegistry.resolveScopedServices(nextScope);
               await windowHostControllerRuntime.replaceDisconnectedSource(previousScope, {
                 scope: nextScope,
-                taskService: services.get(IZCodeTaskService),
+                taskService: services.get(IGCodeTaskService),
                 sourceAvailability: "online",
               });
             } catch (error) {
@@ -2815,8 +2815,8 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
                 runtimeSurface: "desktop_local_host",
               },
               serviceAuthorityMode: "desktop-local",
-              zcodeAgentSpawnFallbackCwd: msg.agentSpawnFallbackCwd,
-              zcodeBuiltinProviderConfigFilePath: msg.zcodeBuiltinProviderConfigFilePath,
+              gcodeAgentSpawnFallbackCwd: msg.agentSpawnFallbackCwd,
+              gcodeBuiltinProviderConfigFilePath: msg.gcodeBuiltinProviderConfigFilePath,
               processLifecycleReporter: runtimeProcessLifecycleReporter,
               taskRuntimeReporter: runtimeTaskReporter,
               feedback: {
@@ -2840,7 +2840,7 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
                   trigger,
                 });
               },
-              // browser-use：agent 的 interaction/browserExecute 经 zcodeAgentService 转到这个 executor，
+              // browser-use：agent 的 interaction/browserExecute 经 gcodeAgentService 转到这个 executor，
               // 再经 parentPort 到 main 的 WebContentsView+CDP 执行。
               browserControlExecutor: browserControlMainBridge,
               // CUA 顶部提示属于物理 Windows 桌面投影；非 Windows 和远端 authority 都不得上报。
@@ -2852,15 +2852,15 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
             return initializedServices;
           },
         });
-        const zcodeTaskService = services.getOptional(IZCodeTaskService);
-        if (zcodeTaskService) {
-          const reportingZCodeTaskService = createReportingRemoteZCodeTaskService(
-            zcodeTaskService,
+        const gcodeTaskService = services.getOptional(IGCodeTaskService);
+        if (gcodeTaskService) {
+          const reportingGCodeTaskService = createReportingRemoteGCodeTaskService(
+            gcodeTaskService,
             {
               reportRunningPromptCount: false,
             },
           );
-          services.register(IZCodeTaskService, reportingZCodeTaskService);
+          services.register(IGCodeTaskService, reportingGCodeTaskService);
         }
         wireLocalResourceTelemetry(services);
         hasDisposedHostResources = false;
@@ -2879,7 +2879,7 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
         // Main 已按最近使用顺序把启动预热限制为 3 个；Host 必须显式消费这份
         // 固定名单，不能让后续 task-list observer 再隐式扩大，也不能因单个失败扫描补位。
         agentWarmupTargets.forEach((target, index) => {
-          warmUpZCodeAgent(
+          warmUpGCodeAgent(
             services,
             target,
             `local host init (${index + 1}/${agentWarmupTargets.length})`,
@@ -2913,7 +2913,7 @@ async function setupRemoteConnection(
 ): Promise<HostRemoteConnection> {
   // 延迟加载 remote backend，避免 local 模式下因 ssh2 依赖链进入 asar 后崩溃
   const { createRemoteBackend, connectRemote, pickRemoteRuntimeEnv } =
-    await import("@zcode/server/remote");
+    await import("@gcode/server/remote");
   const backend = await createRemoteBackend(target);
   const connection = await connectRemote(backend, {
     ...remoteAssets,
@@ -2921,9 +2921,9 @@ async function setupRemoteConnection(
     remoteRuntimeNetwork,
     signal,
     // SSH/Docker 远端 server 由 host process 单独启动，不能依赖桌面 main 的环境继承。
-    // 这里显式透传编译期版本，避免漏导入后生成裸 ZCODE_VERSION 引用导致 SSH 初始化直接 ReferenceError。
-    appVersion: ZCODE_VERSION,
-    // 远端 zcode-server/agent 是独立进程，不能继承 host 里的测试/生产 endpoint 选择。
+    // 这里显式透传编译期版本，避免漏导入后生成裸 GCODE_VERSION 引用导致 SSH 初始化直接 ReferenceError。
+    appVersion: GCODE_VERSION,
+    // 远端 gcode-server/agent 是独立进程，不能继承 host 里的测试/生产 endpoint 选择。
     // 这里只透传 server 侧白名单允许的公开环境变量，避免把 credential/token 带到远端机器。
     remoteRuntimeEnv: pickRemoteRuntimeEnv(process.env),
     assetInstallMode: target.kind === "ssh" ? target.assetInstallMode : undefined,
