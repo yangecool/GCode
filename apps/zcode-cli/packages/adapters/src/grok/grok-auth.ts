@@ -40,7 +40,7 @@ export const DEFAULT_REFERRER = 'grok-build'
 /** 订阅代理头里的 client 归因。 */
 export const DEFAULT_CLIENT_IDENTIFIER = 'grok-shell'
 /** OAuth 端点上报的版本（对齐 Rust 发布版）。 */
-export const CLIENT_VERSION = '1.0.35'
+export const CLIENT_VERSION = '1.0.38'
 
 /** Rust 设备码有效期下限（秒）。 */
 const MIN_DEVICE_CODE_EXPIRY_SECONDS = 10 * 60

@@ -47,7 +47,7 @@ test('direct POST delivers explicit headers and streams the SSE body', async () 
       method: 'POST',
       headers: {
         authorization: 'Bearer test-key',
-        'x-grok-client-version': '1.0.35',
+        'x-grok-client-version': '1.0.38',
         'content-type': 'application/json',
       },
       body: JSON.stringify({ model: 'grok-4.6' }),
@@ -58,7 +58,7 @@ test('direct POST delivers explicit headers and streams the SSE body', async () 
     const seen = server.requests[0]
     assert.equal(seen?.method, 'POST')
     assert.equal(seen?.headers['authorization'], 'Bearer test-key')
-    assert.equal(seen?.headers['x-grok-client-version'], '1.0.35')
+    assert.equal(seen?.headers['x-grok-client-version'], '1.0.38')
     assert.deepEqual(JSON.parse(seen?.body ?? ''), { model: 'grok-4.6' })
     assert.equal(seen?.headers['sec-fetch-mode'], undefined, 'no fetch default headers')
     await transport.close()

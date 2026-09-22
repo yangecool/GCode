@@ -112,3 +112,11 @@ cache key 粒度、TTL、usage 报告只会更细。→ `prompt_cache_key`/会�
 | H6 工具单名 / H7 词汇表 | M3 catalog 落地 |
 | H1 单引擎收敛 / H2 品牌 | M6 |
 | H9–H13 | 4.7 公告或发布时 + M8 就绪门逐条标记 已验证/修正/放弃 |
+
+## F. 4.7 发布回写（2026-09-22，M8 门部分通过）
+
+- **H8 已验证**：`grok-4.7` 目录规则零引擎改动上线（revision 32；efforts low/medium/high/xhigh 默认 high，contextWindow 500k，图像输入——docs.x.ai 模型页核实）。
+- **H10 修正**：4.7 上下文仍为 500k，未增长；「阈值从 catalog 读取」的接缝主张不变（原版每模型字段 `auto_compact_threshold_percent`，全局默认 85、模型覆盖 80——GCode 目录 schema 尚无该字段，记录为接线债务）。
+- **H11 未触发**：hosted 工具面无扩容；`max` 档位在 Rust 词汇表（`low..max` 七值）存在但 4.7 API 未开放——目录不含 `max`，若后续开放经 H8 接缝加值即可。
+- **新增事实**：4.7 在 Responses API 上**始终返回 `reasoning.encrypted_content`（即使 include 未列出）**——引擎已无条件携带该 include 且回放容忍，无需改动。
+- **引擎零跟随确认**：grok-build `a28ee2b2 → 4247f661`，`xai-grok-sampler`/`xai-grok-sampling-types`/`xai-grok-models` 三 crate 零改动；客户端版本 1.0.35 → 1.0.38 已跟进。

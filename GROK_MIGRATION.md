@@ -336,3 +336,19 @@ ZCode 已有 plan-mode 工具与 `EnterPlanMode/ExitPlanMode` 语义。对齐点
 
 **验证状态**：93/93 绿（新增 10 个回归）；adapters typecheck + emit + 全仓 build 通过；oxlint 无新增违规（grok 目录 4 error/4 warning 均为 HEAD 旧账的 max-lines/unused-catch，未动）。
 **遗留**：lint 全仓基线本就红（29 error，非本次引入）；generateText 路径维持缓冲语义（批量契约，正确）。
+
+
+## U1 grok-build 同步 + Grok 4.7 上线（2026-09-22）
+
+**上游拉取**：`grok-harness/grok-build` `a28ee2b2 → 4247f661`（403 文件，+24000/-6610）。移植面三 crate（sampler/sampling-types/models bundled 目录）**零改动**——wire/重试/doom/压缩引擎层无需跟随。本次更新主要内容均在未移植域：worktree 根创建、MCP file input、bash 权限脚本、mermaid-to-svg 渲染、登录 side-call bearer、telemetry 重构。
+
+**4.7 事实核实**（docs.x.ai 模型页/模型详情页）：
+- 模型 id `grok-4.7`；contextWindow 500000；文本+图像输入；Responses API 后端。
+- efforts `low/medium/high/xhigh`，默认 `high`（与 4.6 同；无 `max`——Rust 词汇含 max 但 API 未开放）。
+- `reasoning.encrypted_content` **始终返回**（即使 include 未列出）——引擎已无条件 include，无需改动。
+
+**落地**：
+- `zcode-builtin.json` r32：xai-grok `builtinModelIds` + `grok-4.7` modelRule（H8 验证：零引擎改动）。
+- clientVersion 默认 `1.0.35 → 1.0.38`（adapter + auth + 测试）。
+
+**M8 门检**：H8 ✓（本批演示）；H7 接缝在位（输入项注册表 v1 + fail/passthrough 策略）；H10 修正（4.7 未涨上下文）；H11 未触发。遗留接线债务不变（/models 发现、目录级 compaction 旗标、x-compaction-at 头）。

@@ -231,7 +231,8 @@ export async function executeGrokRequest(
   const maxAttempts = 1 + (config.maxRetries ?? DEFAULT_MAX_RETRIES)
   const doomBudget = config.doomLoopMaxResamples ?? DEFAULT_DOOM_RESAMPLES
   const idleTimeout = config.streamIdleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS
-  const clientVersion = config.clientVersion ?? '1.0.35'
+  // grok-shell 1.0.38（2026-09 grok-build 4247f661）；随上游发布窗口更新。
+  const clientVersion = config.clientVersion ?? '1.0.38'
   const headers: Record<string, string> = {
     authorization: `Bearer ${config.apiKey}`,
     'content-type': 'application/json',
