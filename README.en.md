@@ -17,18 +17,18 @@ G Code is a **Grok-native, single-engine coding agent harness**: the runtime ske
 
 Download from [GitHub Releases](https://github.com/yangecool/GCode/releases) — every push to `main` publishes a rolling `nightly` prerelease, `v*` tags publish stable releases; both include SHA256SUMS.
 
-**GCode CLI (linux-x64)**
+**GCode CLI**
 
 ```bash
-# Single-file executable (embedded Node 24 SEA, no runtime dependency); nightly is the rolling prerelease tag
+# linux-x64 single-file executable (embedded Node 24 SEA, no runtime dependency); nightly is the rolling prerelease tag
 curl -LO https://github.com/yangecool/GCode/releases/download/nightly/GCode-CLI-linux-x64
 chmod +x GCode-CLI-linux-x64
 ./GCode-CLI-linux-x64
 ```
 
-Or use the portable bundle (requires local Node ≥ 24): `node GCode-CLI-linux-x64.cjs`.
+On Windows, download `GCode-CLI-win-x64.exe` and run it directly; or use the portable bundle (requires local Node ≥ 24): `node GCode-CLI-linux-x64.cjs`.
 
-**GCode Desktop (linux-x64)**: download the AppImage / deb / rpm / pacman installer. AppImage runs after `chmod +x`; install the deb with `sudo apt install ./GCode-*.deb`.
+**GCode Desktop**: linux-x64 ships AppImage / deb / rpm / pacman installers, win-x64 ships an NSIS installer (`GCode-<version>-win-x64.exe`). The AppImage runs after `chmod +x`; install the deb with `sudo apt install ./GCode-*.deb`; on Windows, run the installer and follow the wizard.
 
 ## Quick start
 

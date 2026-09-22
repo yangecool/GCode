@@ -17,18 +17,18 @@ G Code 是 **Grok 原生的单引擎编码 Agent harness**：运行时骨架继�
 
 从 [GitHub Releases](https://github.com/yangecool/GCode/releases) 下载（`main` 分支每次推送发布滚动 `nightly` 预发布，`v*` tag 发布正式版；均附 SHA256SUMS）。
 
-**GCode CLI（linux-x64）**
+**GCode CLI**
 
 ```bash
-# 单文件可执行（内嵌 Node 24 SEA，无运行时依赖）；nightly 为滚动预发布 tag
+# linux-x64 单文件可执行（内嵌 Node 24 SEA，无运行时依赖）；nightly 为滚动预发布 tag
 curl -LO https://github.com/yangecool/GCode/releases/download/nightly/GCode-CLI-linux-x64
 chmod +x GCode-CLI-linux-x64
 ./GCode-CLI-linux-x64
 ```
 
-或用便携 bundle（需本机 Node ≥ 24）：`node GCode-CLI-linux-x64.cjs`。
+Windows 下载 `GCode-CLI-win-x64.exe` 直接运行；或用便携 bundle（需本机 Node ≥ 24）：`node GCode-CLI-linux-x64.cjs`。
 
-**GCode Desktop（linux-x64）**：下载 AppImage / deb / rpm / pacman 安装包。AppImage 直接 `chmod +x` 运行；deb 用 `sudo apt install ./GCode-*.deb`。
+**GCode Desktop**：linux-x64 提供 AppImage / deb / rpm / pacman 安装包，win-x64 提供 NSIS 安装器（`GCode-<version>-win-x64.exe`）。AppImage 直接 `chmod +x` 运行；deb 用 `sudo apt install ./GCode-*.deb`；Windows 双击安装器按向导完成安装。
 
 ## 快速开始
 

@@ -78,6 +78,50 @@ jobs:
             apps/zcode-cli/packages/cli/dist/zcode.cjs
           if-no-files-found: error
 
+  build-cli-windows-x64:
+    name: GCode CLI (win-x64 standalone)
+    needs: test
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm 嵌套 node_modules 在 windows 上易超 MAX_PATH；开启系统长路径 + git longpaths。
+      - name: Enable long paths
+        shell: pwsh
+        run: |
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name LongPathsEnabled -Value 1
+          git config --system core.longpaths true
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build CLI bundle + SEA executable (win-x64)
+        run: |
+          pnpm -r build
+          pnpm --filter @zcode/cli exec node scripts/build-sea.mjs --targets win-x64
+
+      - name: Smoke test (gcode --version)
+        run: apps/zcode-cli/packages/cli/dist/zcode-windows-x64.exe --version
+
+      - name: Upload GCode CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GCode-CLI-win-x64
+          path: apps/zcode-cli/packages/cli/dist/zcode-windows-x64.exe
+          if-no-files-found: error
+
   build-desktop-linux-x64:
     name: GCode Desktop (linux-x64)
     needs: test
@@ -144,9 +188,79 @@ jobs:
             packages/desktop/dist/latest*.yml
           if-no-files-found: error
 
+  build-desktop-windows-x64:
+    name: GCode Desktop (win-x64)
+    needs: test
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      ZCODE_TARGET_OS: win
+      ZCODE_TARGET_ARCH: x64
+      ZCODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable long paths
+        shell: pwsh
+        run: |
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name LongPathsEnabled -Value 1
+          git config --system core.longpaths true
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop (runtime assets + production build)
+        run: |
+          set +e
+          pnpm --filter @zcode/desktop build > /tmp/build.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            tail -n 60 /tmp/build.log | grep -iE "error|failed|⨯|Exit code" | tail -n 8 | while IFS= read -r line; do
+              printf '::error title=build::%s\n' "${line:0:220}"
+            done
+            tail -n 25 /tmp/build.log
+            exit "$code"
+          fi
+
+      - name: Bundle desktop installer (NSIS exe)
+        run: |
+          set +e
+          pnpm --filter @zcode/desktop bundle > /tmp/bundle.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            tail -n 60 /tmp/bundle.log | grep -iE "error|failed|⨯|Exit code" | tail -n 8 | while IFS= read -r line; do
+              printf '::error title=bundle::%s\n' "${line:0:220}"
+            done
+            tail -n 25 /tmp/bundle.log
+            exit "$code"
+          fi
+
+      - name: Upload GCode Desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GCode-Desktop-win-x64
+          path: |
+            packages/desktop/dist/*.exe
+            packages/desktop/dist/*.blockmap
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
-    needs: [build-cli, build-desktop-linux-x64]
+    needs:
+      - build-cli
+      - build-cli-windows-x64
+      - build-desktop-linux-x64
+      - build-desktop-windows-x64
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -167,8 +281,10 @@ jobs:
           mv artifacts/zcode-linux-x64 release/GCode-CLI-linux-x64
           chmod +x release/GCode-CLI-linux-x64
           mv artifacts/zcode.cjs release/GCode-CLI-linux-x64.cjs
-          # 桌面安装器（GCode-<version>-linux-<arch>.*，构建侧已定名）。
+          mv artifacts/zcode-windows-x64.exe release/GCode-CLI-win-x64.exe
+          # 桌面安装器（GCode-<version>-<os>-<arch>.*，构建侧已定名）。
           mv artifacts/*.AppImage artifacts/*.deb artifacts/*.rpm artifacts/*.pkg.tar.zst release/ 2>/dev/null || true
+          mv artifacts/GCode-*-win-*.exe artifacts/*.blockmap release/ 2>/dev/null || true
           rm -rf artifacts
           ls -lh release/
 
@@ -189,19 +305,23 @@ jobs:
             EXTRA=""
           else
             TAG="nightly"
-            TITLE="GCode nightly ${VERSION} (linux-x64)"
+            TITLE="GCode nightly ${VERSION} (linux-x64 + win-x64)"
             EXTRA="--prerelease"
             # 滚动 tag：先清掉旧 nightly，避免同名资产冲突。
             gh release delete nightly --yes --cleanup-tag 2>/dev/null || true
           fi
           NOTES="Automated build from ${GITHUB_SHA}.
 
-          ## GCode CLI (linux-x64)
+          ## GCode CLI
           - GCode-CLI-linux-x64 — standalone executable (node 24 SEA)
           - GCode-CLI-linux-x64.cjs — portable bundle, run with \`node GCode-CLI-linux-x64.cjs\` (node >= 24)
+          - GCode-CLI-win-x64.exe — Windows standalone executable (node 24 SEA)
 
           ## GCode Desktop (linux-x64)
           - AppImage / deb / rpm / pacman installers
+
+          ## GCode Desktop (win-x64)
+          - GCode Setup NSIS installer (.exe)
 
           Tests: adapters 98 + core 3 grok suites green on this commit."
           gh release create "${TAG}" release/* \
