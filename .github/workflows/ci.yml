@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build + grok test suites
+    runs-on: ubuntu-latest
+    env:
+      # adapters tsc 在并行构建下内存压力大（与本地脚本同口径）。
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages (full tsc pass)
+        run: pnpm -r build
+
+      - name: Grok engine tests (adapters, 98)
+        run: pnpm --filter @zcode/adapters test
+
+      - name: Session wiring tests (core, 3)
+        run: pnpm --filter @zcode/core test
+
+  build-cli:
+    name: GCode CLI (linux-x64 standalone)
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build CLI bundle + SEA executable (linux-x64)
+        run: |
+          pnpm -r build
+          pnpm --filter @zcode/cli exec node scripts/build-sea.mjs --targets linux-x64
+
+      - name: Smoke test (gcode --version)
+        run: |
+          chmod +x apps/zcode-cli/packages/cli/dist/zcode-linux-x64
+          apps/zcode-cli/packages/cli/dist/zcode-linux-x64 --version
+
+      - name: Upload GCode CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GCode-CLI-linux-x64
+          path: |
+            apps/zcode-cli/packages/cli/dist/zcode-linux-x64
+            apps/zcode-cli/packages/cli/dist/zcode.cjs
+          if-no-files-found: error
+
+  build-desktop-linux-x64:
+    name: GCode Desktop (linux-x64)
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      ZCODE_TARGET_OS: linux
+      ZCODE_TARGET_ARCH: x64
+      # 生产后端身份（无 _TEST 产物后缀）。
+      ZCODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # rpm 目标需要 rpmbuild；AppImage 需要基础工具链（runner 自带 build-essential）。
+      - name: Install packaging toolchain
+        run: sudo apt-get update && sudo apt-get install -y rpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop (runtime assets + production build)
+        run: pnpm --filter @zcode/desktop build
+
+      - name: Bundle desktop installers (AppImage/deb/rpm/pacman)
+        run: pnpm --filter @zcode/desktop bundle
+
+      - name: Upload GCode Desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GCode-Desktop-linux-x64
+          path: |
+            packages/desktop/dist/*.AppImage
+            packages/desktop/dist/*.deb
+            packages/desktop/dist/*.rpm
+            packages/desktop/dist/*.pkg.tar.zst
+            packages/desktop/dist/latest*.yml
+          if-no-files-found: error

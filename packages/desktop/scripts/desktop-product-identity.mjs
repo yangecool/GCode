@@ -5,21 +5,23 @@
  */
 export const ZCODE_PREVIEW_IDENTITY_ENV = "ZCODE_PREVIEW_IDENTITY";
 
+// G Code 改名（M6）：桌面安装身份从 ZCode 翻转为 GCode。appId 同步迁移——
+// 本产品尚未发布过自动更新通道，身份切换无存量安装可破坏。
 const PRODUCTION_IDENTITY = Object.freeze({
   flavor: "production",
-  appId: "dev.zcode.app",
-  productName: "ZCode",
-  linuxExecutableName: "zcode",
-  linuxPackageName: "zcode",
+  appId: "dev.gcode.app",
+  productName: "GCode",
+  linuxExecutableName: "gcode",
+  linuxPackageName: "gcode",
   cuaHelperInstallVariant: null,
 });
 
 const PREVIEW_IDENTITY = Object.freeze({
   flavor: "preview",
-  appId: "dev.zcode.app.preview",
-  productName: "ZCode Preview",
-  linuxExecutableName: "zcode-preview",
-  linuxPackageName: "zcode-preview",
+  appId: "dev.gcode.app.preview",
+  productName: "GCode Preview",
+  linuxExecutableName: "gcode-preview",
+  linuxPackageName: "gcode-preview",
   cuaHelperInstallVariant: "preview",
 });
 
