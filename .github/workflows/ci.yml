@@ -105,10 +105,31 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build desktop (runtime assets + production build)
-        run: pnpm --filter @zcode/desktop build
+        run: |
+          set +e
+          pnpm --filter @zcode/desktop build > /tmp/build.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            tail -n 60 /tmp/build.log | grep -iE "error|failed|⨯|Exit code" | tail -n 8 | while IFS= read -r line; do
+              printf '::error title=build::%s\n' "${line:0:220}"
+            done
+            tail -n 25 /tmp/build.log
+            exit "$code"
+          fi
 
       - name: Bundle desktop installers (AppImage/deb/rpm/pacman)
-        run: pnpm --filter @zcode/desktop bundle
+        run: |
+          set +e
+          pnpm --filter @zcode/desktop bundle > /tmp/bundle.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            # 失败尾部以 ::error 注解发出（注解经公开 API 可读，便于无 token 诊断）。
+            tail -n 60 /tmp/bundle.log | grep -iE "error|failed|⨯|Exit code" | tail -n 8 | while IFS= read -r line; do
+              printf '::error title=bundle::%s\n' "${line:0:220}"
+            done
+            tail -n 25 /tmp/bundle.log
+            exit "$code"
+          fi
 
       - name: Upload GCode Desktop artifact
         uses: actions/upload-artifact@v4
