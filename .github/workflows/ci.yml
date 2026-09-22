@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 24.14.0
           cache: pnpm
 
       - name: Install dependencies
@@ -52,7 +52,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 24.14.0
           cache: pnpm
 
       - name: Install dependencies
@@ -94,7 +94,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 24.14.0
           cache: pnpm
 
       # rpm 目标需要 rpmbuild；AppImage 需要基础工具链（runner 自带 build-essential）。

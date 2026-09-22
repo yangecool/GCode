@@ -24,6 +24,34 @@ export function placeRuntimePackage({ packageName, packageDirectory, fromAssetPa
   return assetPath;
 }
 
+/** 解析 workspace 包的运行时入口文件；不存在返回 undefined。 */
+const resolveWorkspaceEntry = async (directory) => {
+  let pkg;
+  try {
+    pkg = JSON.parse(await readFile(resolve(directory, "package.json"), "utf8"));
+  } catch {
+    return undefined;
+  }
+  const dot = pkg?.exports?.["."];
+  const candidates = [];
+  if (typeof dot === "string") candidates.push(dot);
+  else if (dot && typeof dot === "object") {
+    for (const key of ["import", "require", "default"]) {
+      const value = dot[key];
+      if (typeof value === "string") candidates.push(value);
+      else if (value && typeof value === "object" && typeof value.import === "string") {
+        candidates.push(value.import);
+      }
+    }
+  }
+  if (typeof pkg?.main === "string") candidates.push(pkg.main);
+  candidates.push("dist/index.js");
+  for (const candidate of candidates) {
+    if (await exists(resolve(directory, candidate))) return candidate;
+  }
+  return undefined;
+};
+
 export const resolveRuntimePackageDirectory = async ({
   fromDirectory,
   packageName,
@@ -34,8 +62,12 @@ export const resolveRuntimePackageDirectory = async ({
   if (workspacePackageDirectory) {
     const directory = workspacePackageDirectory;
     await assertPackageDirectory(packageName, directory);
-    if (!(await exists(resolve(directory, "dist", "index.js")))) {
-      throw new Error(`Missing ${packageName} dist files. Run \`pnpm build\` before \`pnpm sea\`.`);
+    // 入口按包自己的 exports/main 解析：根仓 src-exported 包（@zcode/shared，
+    // exports 直指 src/*.ts）在 node>=24（require TS 原生支持）下作为运行时
+    // 资产同样合法；只有既无 exports 指向文件、又无 dist/index.js 才是未构建。
+    const entry = await resolveWorkspaceEntry(directory);
+    if (entry === undefined) {
+      throw new Error(`Missing ${packageName} entry files. Run \`pnpm build\` before \`pnpm sea\`.`);
     }
     return directory;
   }
