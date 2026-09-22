@@ -190,9 +190,15 @@ export async function autoCompactIfNeeded(
 ): Promise<AutoCompactOutcome> {
   throwIfTurnAborted(abortSignal);
 
+  // 引擎方言压缩策略（Grok）：目录/引擎侧百分比覆盖 ZCode 默认的
+  // 窗口-预留-缓冲口径；显式 config.compact 覆盖仍最高优先。
+  const engineAutoCompact = this.resolveEnginePersona?.(context.model)?.autoCompact;
   const config: AutoCompactPolicyConfig = {
     contextWindow: context.model.properties.contextWindow,
     ...this.config.compact,
+    ...engineAutoCompact === undefined
+      ? {}
+      : { thresholdPercentOverride: this.config.compact?.thresholdPercentOverride ?? engineAutoCompact.thresholdPercent },
     maxOutputTokens: resolveNormalRequestMaxOutputTokens({
       modelMaxOutputTokens: context.model.optionSpecs.maxOutputTokens.max,
     }),

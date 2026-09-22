@@ -139,6 +139,13 @@ export function getTools(this: AgentRuntimeInternal, model?: Model): ModelToolCo
   }
   return this.cachedTools
     .filter((tool) => tool.name !== "WebSearch" || shouldExposeWebSearch.call(this, model))
+    // HashlineEdit 是 Grok 引擎方言的编辑工具：persona（按 provider api 类型
+    // 解析）不在场即对模型隐藏，避免非 grok 引擎看到第二套编辑协议。
+    .filter(
+      (tool) =>
+        tool.name !== "HashlineEdit" ||
+        (model !== undefined && this.resolveEnginePersona?.(model) !== undefined),
+    )
     .map((tool) =>
       projectToolModelContract(tool, this.registry.get(tool.name), {
         model,

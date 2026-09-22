@@ -120,3 +120,20 @@ cache key 粒度、TTL、usage 报告只会更细。→ `prompt_cache_key`/会�
 - **H11 未触发**：hosted 工具面无扩容；`max` 档位在 Rust 词汇表（`low..max` 七值）存在但 4.7 API 未开放——目录不含 `max`，若后续开放经 H8 接缝加值即可。
 - **新增事实**：4.7 在 Responses API 上**始终返回 `reasoning.encrypted_content`（即使 include 未列出）**——引擎已无条件携带该 include 且回放容忍，无需改动。
 - **引擎零跟随确认**：grok-build `a28ee2b2 → 4247f661`，`xai-grok-sampler`/`xai-grok-sampling-types`/`xai-grok-models` 三 crate 零改动；客户端版本 1.0.35 → 1.0.38 已跟进。
+
+## G. W 批终态回写（2026-09-22）
+
+| 假设 | 终态 |
+| --- | --- |
+| H1 单引擎 | 门就绪：`GCODE_SINGLE_ENGINE=1`（工具层目录收敛）；产品面默认收敛待用户决策 |
+| H2 品牌 | 已落地（M6 + U1 clientVersion 1.0.38） |
+| H3 订阅受众 | 已落地：设备流 + 浏览器跳转 + 引擎 subscription 模式（`GCODE_GROK_SUBSCRIPTION=1`） |
+| H5 原生 wire | 已落地 + R1 修复（流式 reasoning 无损） |
+| H6 工具单名 | 已落地（persona 工具映射 + HashlineEdit 方言工具） |
+| H7 词汇表 | 接缝在位（注册表 v1 + fail/passthrough）；4.7 无新 wire 项，未实战 |
+| H8 枚举开放 | 已验证（4.7 零引擎改动上线） |
+| H9 发现 | 模块就绪（fetchGrokModelIds + 测试）；生产路径 = 目录 CDN 刷新；grok-account 集成待做 |
+| H10 上下文 | 已验证并修正（4.7 = 500k）；目录级阈值字段贯通（grok 80%） |
+| H11 hosted 扩容 | 已落地（extra 开放注册，wire 层校验） |
+| H12 服务端状态 | 桩就绪（serverState 版本化字段，读侧 fail-loud） |
+| H13 缓存计费 | 已落地（prompt_cache_key 会话槽 + usage cache 字段贯通 ZCode 观测） |

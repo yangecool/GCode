@@ -73,23 +73,24 @@ export const GCODE_DEFAULT_TOOL_KINDS: Readonly<GrokPersonaToolKinds> = {
   monitor: 'TaskOutput',
 }
 
-/** 按原版模板分支结构解析主 persona 系统提示。 */
-export function buildGrokPersonaPrompt(options: GrokPersonaOptions): string {
+/** 身份首段（原版模板第一 section；ZCode cli_prefix 段替换用）。 */
+export function buildGrokIdentityStatement(
+  options: Pick<GrokPersonaOptions, 'label' | 'isNonInteractive' | 'userQueryTagged'> = {},
+): string {
   const label = options.label ?? GROK_DEFAULT_PERSONA_LABEL
-  const tools = options.tools ?? {}
-  const nonInteractive = options.isNonInteractive === true
   const queryClause = options.userQueryTagged === true
     ? ', denoted within the <user_query> tag'
     : ''
-  const mode = nonInteractive
+  const mode = options.isNonInteractive === true
     ? 'an autonomous agent that completes software engineering tasks. There is no human operator in this session.'
     : 'an interactive CLI tool that helps users with software engineering tasks.'
+  return `You are ${label} released by xAI. You are ${mode} Your main goal is to complete the user's request${queryClause}.`
+}
 
+/** persona 主体段（work_policy/memory/background_tasks/communication/formatting）。 */
+export function buildGrokPersonaBodySections(options: GrokPersonaOptions): string[] {
+  const tools = options.tools ?? {}
   const sections: string[] = []
-  sections.push(
-    `You are ${label} released by xAI. You are ${mode} Your main goal is to complete the user's request${queryClause}.`,
-  )
-
   sections.push(`<work_policy>
 - Keep every explicit requirement of the request in view until it is completed, superseded by the user, or genuinely blocked. If something is blocked, say so plainly rather than quietly dropping it.
 - Match your response to the user's intent. Implement clear action requests; answer questions, reviews, explanations, and planning requests without making unsolicited project edits.
@@ -178,6 +179,17 @@ Never fabricate a person's name or infer it from a username, handle, email addre
   sections.push(`<formatting>
 Your text output is rendered as GitHub-flavored markdown (CommonMark). Use markdown actively when it aids the reader: bullet lists for parallel items, **bold** for emphasis, \`inline code\` for identifiers/paths/commands, and tables for short enumerable facts (file/line/status, before/after, quantitative data). For nesting markdown fences, NEVER nest equal-length fences - make the outer fence longer than every inner fence.
 </formatting>`)
+
+  return sections
+}
+
+/** 按原版模板分支结构解析主 persona 系统提示。 */
+export function buildGrokPersonaPrompt(options: GrokPersonaOptions): string {
+  const nonInteractive = options.isNonInteractive === true
+  const sections = [
+    buildGrokIdentityStatement(options),
+    ...buildGrokPersonaBodySections(options),
+  ]
 
   if (!nonInteractive) {
     const docsDir = options.userGuideDir ?? '~/.grok/docs/user-guide/'

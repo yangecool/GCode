@@ -78,6 +78,7 @@ export interface AgentRuntimeInternal
   hookRunner?: HookRunner;
   workspaceHookAdmission?: WorkspaceHookRuntimeAdmissionPort;
   modelFactory: AgentRuntimeDeps["modelFactory"];
+  resolveEnginePersona?: AgentRuntimeDeps["resolveEnginePersona"];
   modelIoDir?: string;
   providerRuntimeHeadersPort?: ProviderRuntimeHeadersPort;
   browserControlPort?: AgentRuntimeDeps["browserControlPort"];

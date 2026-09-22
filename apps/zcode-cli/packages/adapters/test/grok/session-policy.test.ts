@@ -184,3 +184,28 @@ test('length salvage requires committed max-tokens text without tool calls', () 
   assert.equal(shouldLengthSalvage({ committedMessage: true, maxTokens: true, sawToolCall: false, used: 2 }), false)
   assert.ok(LENGTH_CONTINUE_REMINDER_BODY.includes('Continue from exactly where it stopped'))
 })
+
+// ---------------------------------------------------------------------------
+// H11 开放注册
+// ---------------------------------------------------------------------------
+
+test('hosted tools accept extra open-registry wire names with validated entries', () => {
+  const specs = resolveGrokHostedTools({
+    owned: ['web_search'],
+    extra: {
+      future_hosted_tool: { type: 'future_hosted_tool', enabled: true },
+    },
+  })
+  // extra 名不在封闭集：登记即透传（wire 层 hostedWireTool 校验在请求侧 fail-loud）。
+  assert.deepEqual(specs.at(-1), {
+    wireName: 'future_hosted_tool',
+    entry: { type: 'future_hosted_tool', enabled: true },
+  })
+})
+
+test('hosted tools still reject unregistered names', () => {
+  assert.throws(
+    () => resolveGrokHostedTools({ owned: ['code_interpreter' as never] }),
+    /unknown hosted tool/,
+  )
+})

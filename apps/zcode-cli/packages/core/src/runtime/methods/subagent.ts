@@ -300,6 +300,8 @@ export function createDefaultSubagentPort(
           modelRequestAdmission: this.modelRequestAdmission,
           modelFactory: childModelFactory,
           resolveEffectiveModelSelection: deps.resolveEffectiveModelSelection,
+          // 引擎方言随父子一致：子代理 Context 的 cli_prefix 也按执行引擎替换。
+          resolveEnginePersona: deps.resolveEnginePersona,
           // 子 runtime 自己仍使用 request.sessionId 做事件持久化和 trace 归档；对外阻塞交互
           // （permission / AskUserQuestion / provider runtime headers）一律路由回父 session——
           // 桌面 UI 只认识父 task 的 sessionId。派生收敛在 deriveChildClientPorts 一处，

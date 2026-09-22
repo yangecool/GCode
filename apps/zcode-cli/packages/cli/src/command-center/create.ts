@@ -117,6 +117,22 @@ export function createCommandCenter(deps: CommandCenterDeps): TuiSubmitPrompt {
             ),
           };
         }
+        if (command.args === "grok") {
+          if (!deps.loginGrok) {
+            return {
+              mode: deps.getMode?.(),
+              response: "Grok subscription login is not available in this client.",
+            };
+          }
+          const grokResult = await deps.loginGrok({
+            abortSignal: options.abortSignal,
+          });
+          return {
+            loginRequired: false,
+            mode: deps.getMode?.(),
+            response: grokResult.message,
+          };
+        }
         if (command.args === "bigmodel-coding-plan") {
           if (!deps.loginBigmodel) {
             return {
@@ -174,7 +190,7 @@ export function createCommandCenter(deps: CommandCenterDeps): TuiSubmitPrompt {
         return {
           mode: deps.getMode?.(),
           response:
-            "Usage: /login [zai-coding-plan|bigmodel-coding-plan|zai-coding-plan-api-key <api-key>|bigmodel-coding-plan-api-key <api-key>]",
+            "Usage: /login [grok|zai-coding-plan|bigmodel-coding-plan|zai-coding-plan-api-key <api-key>|bigmodel-coding-plan-api-key <api-key>]",
         };
       }
 

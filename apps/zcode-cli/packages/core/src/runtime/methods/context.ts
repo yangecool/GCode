@@ -107,10 +107,15 @@ export function createContextBuilderFromSnapshot(
     // 执行模型属于 model step，不写回可复用的 Context Source。
     this.config.envInfo = envInfo;
   }
+  // 引擎方言按 model step 的执行对象解析：模型切换后 Context 重建自然换身份。
+  const enginePersona = options.model === undefined
+    ? undefined
+    : this.resolveEnginePersona?.(options.model);
   if (this.config.subagentContext) {
     return createSubagentContextBuilder({
       agentPrompt: this.config.subagentContext.agentPrompt,
       currentDate: snapshot.currentDate,
+      enginePersona,
       envInfo,
       model: options.model,
       skillMetadataBudget: this.config.skillMetadataBudget,
@@ -121,6 +126,7 @@ export function createContextBuilderFromSnapshot(
 
   const contextConfig: ContextBuilderConfig = {
     workingDirectory: snapshot.workingDirectory,
+    enginePersona,
     envInfo,
     model: options.model,
     presentationSurface: this.config.presentationSurface,

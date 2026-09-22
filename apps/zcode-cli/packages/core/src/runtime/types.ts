@@ -317,6 +317,12 @@ export interface AgentRuntimeDeps {
   modelFactory: RuntimeModelFactory;
   /** 可选宿主能力：解析未来执行的显式意图；不用于修改已冻结 Model。 */
   resolveEffectiveModelSelection?: (selection: ModelSelection) => EffectiveModelSelectionResult;
+  /**
+   * 可选宿主能力：按执行 Model 解析引擎方言身份（provider api 类型驱动）。
+   * 在场时 ContextBuilder 用引擎文案替换 cli_prefix/identity 两段；压缩与
+   * 输出续写机制按 override 携带的方言分派。同步、无 I/O。
+   */
+  resolveEnginePersona?: (model: Model) => import("../context/index.js").EnginePersonaOverride | undefined;
   modelIoDir?: string;
   providerRuntimeHeadersPort?: ProviderRuntimeHeadersPort;
   permissionService?: PermissionService;

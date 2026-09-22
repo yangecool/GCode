@@ -15,6 +15,10 @@ import type { GrokModelBinding } from "./grok/grok-executor.js";
 import { GrokWireError } from "./grok/grok-wire.js";
 import type { GrokHttpTransport } from "./grok/grok-http.js";
 import { createGrokHttpTransport } from "./grok/grok-http.js";
+import { grokHostedToolsFromEnv } from "../grok/grok-session.js";
+import { GrokAuthService, getOrCreateGrokAgentId } from "../grok/grok-auth.js";
+import { grokPromptCacheKey } from "./grok/grok-wire.js";
+import { getCurrentModelInvocationContext } from "@zcode/contracts";
 import type { RegistryProviderConfig } from "@zcode/provider";
 
 export interface GrokRunnerModelOptions {
@@ -47,6 +51,8 @@ function grokErrorCode(code: string): ModelErrorCode {
   switch (code) {
     case "ABORTED":
       return ModelErrorCode.ModelRequestCancelled;
+    case "AUTH_MISSING":
+      return ModelErrorCode.ModelRequestAuthMissing;
     case "RATE_LIMIT":
       return ModelErrorCode.ModelRateLimited;
     case "PROTOCOL":
@@ -72,40 +78,80 @@ export function createGrokModelExecutor(options: GrokRunnerModelOptions): ModelE
     );
   }
   const access = options.providerConfig.access;
+  const env = options.env ?? process.env;
   const apiKey =
     access.type !== "zhipu-account" && access.apiKey && access.apiKey.length > 0
       ? access.apiKey
-      : options.env?.[GROK_API_KEY_ENV] ?? process.env[GROK_API_KEY_ENV];
-  if (apiKey === undefined || apiKey.length === 0) {
+      : env[GROK_API_KEY_ENV];
+  // H3 订阅模式：GCODE_GROK_SUBSCRIPTION=1 时走设备流令牌（/login grok 写入
+  // GCODE_HOME）+ grok-build 客户端身份头；API key 仅作回退。
+  const subscription = env.GCODE_GROK_SUBSCRIPTION?.trim() === "1";
+  if (!subscription && (apiKey === undefined || apiKey.length === 0)) {
     throw new ModelProtocolError(
       ModelErrorCode.ModelRequestAuthMissing,
       `Grok provider has no API key: set the provider credential or ${GROK_API_KEY_ENV}`,
       { providerId: options.providerId },
     );
   }
-  const transport: GrokHttpTransport = createGrokHttpTransport(options.env ?? process.env);
+  const transport: GrokHttpTransport = createGrokHttpTransport(env);
+  const subscriptionAuth = subscription ? new GrokAuthService() : undefined;
+  const subscriptionBearer = subscription
+    ? async (): Promise<string> => {
+      const token = await subscriptionAuth?.resolveAccessToken();
+      if (token === undefined) {
+        throw new GrokWireError(
+          "no grok subscription token: run /login grok (device flow) or set an API key",
+          "AUTH_MISSING",
+        );
+      }
+      return token;
+    }
+    : undefined;
+  // H11：hosted 工具面经部署 env 声明（GCODE_GROK_HOSTED_TOOLS，JSON）；
+  // 未声明不发 hosted 工具（原版语义：未 owner 的 hosted 工具不进请求）。
+  const hostedTools = grokHostedToolsFromEnv(options.env ?? process.env);
   const binding: GrokModelBinding = {
     ...(options.reasoningLevels === undefined ? {} : { knownEfforts: options.reasoningLevels }),
   };
   const core = createGrokModelExecutorCore(
     {
-      apiKey,
       baseURL: api.baseUrl ?? GROK_DEFAULT_BASE_URL,
       model: options.modelId,
       // 同源历史判定用真实 provider id（防止把本 provider 的历史当跨
       // provider 丢弃 replay 元数据）。
       providerId: options.providerId,
+      ...(hostedTools === undefined ? {} : { hostedTools }),
+      ...(subscription
+        ? {
+          authMode: "grok-subscription" as const,
+          resolveBearer: subscriptionBearer,
+          agentId: getOrCreateGrokAgentId({ env }),
+        }
+        : {}),
+      apiKey: apiKey ?? "",
       transport,
     },
     binding,
   );
   const wrap = (error: unknown): unknown =>
     toModelProtocolError(error, options.providerId, options.modelId);
+  // H13：粘性路由 cache key——主/子代理请求共享会话槽，辅助调用（标题、
+  // 权限旁路）不复用（原版 grokPromptCacheKey 语义）。
+  const cacheKeyOf = (request: ModelExecutionRequest): string | undefined => {
+    const context = getCurrentModelInvocationContext();
+    const sessionType = context?.modelRequestSessionType;
+    if (sessionType !== undefined && sessionType !== "main" && sessionType !== "subagent") {
+      return undefined;
+    }
+    const sessionId = context?.metadata?.["sessionId"] ?? context?.traceContext?.sessionId;
+    return grokPromptCacheKey(typeof sessionId === "string" ? sessionId : undefined);
+  };
   const toCore = (request: ModelExecutionRequest) => ({
     messages: request.messages,
     tools: request.tools,
     reasoningLevel: request.options.reasoningLevel,
     maxOutputTokens: request.options.maxOutputTokens,
+    promptCacheKey: cacheKeyOf(request),
     abortSignal: request.abortSignal,
   });
   return {

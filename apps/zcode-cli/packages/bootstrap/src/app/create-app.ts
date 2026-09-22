@@ -24,6 +24,7 @@ import {
   type AmendWorkflowRunSettingsInput,
   type ResumeSessionResult,
 } from "@zcode/core";
+import type { AgentRuntimeDeps } from "@zcode/core";
 import { createModelTelemetry } from "@zcode/telemetry";
 import {
   createRootTraceContext,
@@ -99,6 +100,8 @@ import { collectDisabledPaths } from "../skill-command-overrides.js";
 import { loadPluginAgentProfiles, loadZCodeAgentProfiles } from "../subagents.js";
 import { createRuntimeAiSdkModelExecutionConfig } from "../model-config.js";
 import { ApiProviderModelRuntime } from "./provider-registry-model-runtime.js";
+import { buildGrokEnginePersona } from "@zcode/adapters/grok-session";
+import { grokMemoryV2PersonaPaths } from "@zcode/adapters/grok-session";
 import {
   completeAppStartup,
   debugRuntimeConfigResolved,
@@ -554,6 +557,21 @@ export async function createZCodeApp(options: ZCodeAppOptions): Promise<ZCodeApp
     // runtime 与 expert workflow facade 都**共享**父会话这一份 factory——Registry 视图更新后
     // 新建的 Model 才看得到，child 不各自冻结一份。
     const modelFactory = providerModelRuntime.modelFactory;
+    // 引擎方言（Grok）注入：按 provider api 类型组装 persona/压缩/续写覆盖；
+    // 纯同步、fail-soft（组装异常按无方言处理，不阻塞 model step）。
+    const resolveEnginePersona: AgentRuntimeDeps["resolveEnginePersona"] = (model) => {
+      const provider = options.providerRegistry.getProvider(model.providerId);
+      if (provider?.config.api?.type !== "grok-responses") return undefined;
+      try {
+        return buildGrokEnginePersona({
+          cwd: workingDirectory,
+          memoryV2: grokMemoryV2PersonaPaths(workingDirectory),
+          autoCompactThresholdPercent: model.properties.autoCompactThresholdPercent,
+        });
+      } catch {
+        return undefined;
+      }
+    };
     const scriptWorkflowFacade = createScriptWorkflowBridge({
       agentTelemetry: modelTelemetry.agentExecution,
       appOptions: options,
@@ -567,6 +585,7 @@ export async function createZCodeApp(options: ZCodeAppOptions): Promise<ZCodeApp
       logger,
       mcpPort,
       modelFactory,
+      resolveEnginePersona,
       permissionService,
       prepareUserExecutionBoundary,
       getRuntime,
@@ -638,6 +657,7 @@ export async function createZCodeApp(options: ZCodeAppOptions): Promise<ZCodeApp
                   // 父会话的 model factory：actor 与主 turn 从同一份 Registry 视图造 Model，
                   // 不各自冻结一份。
                   modelFactory,
+                  resolveEnginePersona,
                   permissionService,
                   runtime: getRuntime(),
                   runtimeConfig,
@@ -761,6 +781,7 @@ export async function createZCodeApp(options: ZCodeAppOptions): Promise<ZCodeApp
       mcpPort,
       eventSink: options.eventSink,
       modelFactory,
+      resolveEnginePersona,
       modelIoDir,
       providerRuntimeHeadersPort: options.providerRuntimeHeadersPort,
       resolveEffectiveModelSelection: options.resolveEffectiveModelSelection,
@@ -836,6 +857,7 @@ export async function createZCodeApp(options: ZCodeAppOptions): Promise<ZCodeApp
       logger,
       mcpPort,
       modelFactory,
+      resolveEnginePersona,
       permissionService,
       prepareUserExecutionBoundary,
       runtime,

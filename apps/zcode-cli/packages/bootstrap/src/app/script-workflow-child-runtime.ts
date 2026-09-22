@@ -50,6 +50,7 @@ export interface ScriptWorkflowAgentRuntimeDeps {
   mcpPort?: McpPort;
   /** 父会话的 model factory：child 与主 turn 从同一份 Registry 视图造 Model，不各自冻结。 */
   modelFactory: NonNullable<AgentRuntimeDeps["modelFactory"]>;
+  resolveEnginePersona?: AgentRuntimeDeps["resolveEnginePersona"];
   permissionService: PermissionService;
   runtime: AgentRuntime;
   runtimeConfig: AgentRuntimeConfig;
@@ -217,6 +218,7 @@ function createRuntimeDeps(
     logger: deps.logger,
     mcpPort: deps.mcpPort,
     modelFactory: deps.modelFactory,
+    resolveEnginePersona: deps.resolveEnginePersona,
     resolveEffectiveModelSelection: deps.appOptions.resolveEffectiveModelSelection,
     // permissionBroker + providerRuntimeHeadersPort 都在这里面：父 runtime 派生，路由身份已改写成父会话。
     ...deps.runtime.createChildClientPorts(clientPortsContext),

@@ -4,6 +4,7 @@ import type { RunDependencies } from "./cli-types.js";
 import type {
   CommandCenterApiKeyOptions,
   CommandCenterBigmodelLoginOptions,
+  CommandCenterGrokLoginOptions,
   CommandCenterLoginOptions,
 } from "./command-center/types.js";
 
@@ -87,4 +88,13 @@ export async function logoutForTui(deps: RunDependencies) {
 
   const logout = deps.logoutZCodeCli ?? (await loadBootstrapModule()).logoutZCodeCli;
   return await logout({ env });
+}
+
+/** G Code：Grok 订阅设备流登录（浏览器跳转；bootstrap grok-login）。 */
+export async function loginGrokForTui(
+  _deps: RunDependencies,
+  options?: CommandCenterGrokLoginOptions,
+) {
+  const { loginGrokCli } = await loadBootstrapModule();
+  return await loginGrokCli({ abortSignal: options?.abortSignal });
 }

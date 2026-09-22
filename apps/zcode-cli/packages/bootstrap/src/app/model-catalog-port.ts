@@ -41,7 +41,13 @@ export function createModelCatalogPort(deps: ModelCatalogPortDeps): ModelCatalog
       // 这一行就是上面那条纪律的全部实现。任何把它提到闭包外的「优化」都在重演同一问题。
       const view = deps.registry.getView();
       const current = deps.currentSelection();
-      return view.providers.flatMap((provider) =>
+      // H1 单引擎收敛门（默认关）：GCODE_SINGLE_ENGINE=1 时工具层的模型目录
+      // 只保留 grok-responses provider——多 provider 产品面收敛的机械部分。
+      // GUI picker 的脸（provider-registry-selection）不受此影响；产品默认
+      // 是否收敛属用户决策，本门只提供开关。
+      const singleEngine = process.env.GCODE_SINGLE_ENGINE?.trim() === "1";
+      return view.providers
+        .flatMap((provider) =>
         provider.models.map((model): ModelCatalogEntry => {
           const reasoning = model.config.optionSpecs.reasoningLevel;
           // 档位表**复制**而不是原样递出：注册表的 values 是 readonly 视图的一部分，
@@ -80,8 +86,13 @@ export function createModelCatalogPort(deps: ModelCatalogPortDeps): ModelCatalog
             // packages/services 的桌面端 legacy 配置迁移里，够不到这份注册表。将来真有了
             // 「配了但不可用」的判据（缺密钥、被策略禁用），补在这里即可，端口契约不用动。
           };
-        }),
-      );
+          }),
+        )
+        .filter(
+          (entry) =>
+            !singleEngine ||
+            deps.registry.getProvider(entry.providerId)?.config.api?.type === "grok-responses",
+        );
     },
   };
 }

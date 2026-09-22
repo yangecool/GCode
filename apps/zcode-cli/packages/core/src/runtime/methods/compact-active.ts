@@ -256,6 +256,9 @@ async function compactActiveConversationImpl(
   const compactTools =
     runtimeCompactTools.length > COMPACT_TOOL_KEEP_MAX_COUNT ? [] : runtimeCompactTools;
 
+  // 引擎方言（Grok）：摘要提示词与置换后续读文案按执行模型解析一次。
+  const engineAutoCompact = this.resolveEnginePersona?.(compactModel)?.autoCompact;
+
   while (true) {
     try {
       const lastSummarizedMessageId = this.latestConversationMessageId;
@@ -265,7 +268,10 @@ async function compactActiveConversationImpl(
           querySource: "compact",
         },
       });
-      const compactPrompt = buildCompactPrompt(customInstructions);
+      const compactPrompt = buildCompactPrompt(
+        customInstructions,
+        engineAutoCompact?.summaryPrompt,
+      );
       let result: RuntimeModelTextResult;
       let compactPromptTooLongAttempts = 0;
       let stripMediaForSummary = false;
@@ -517,6 +523,7 @@ async function compactActiveConversationImpl(
       const summaryMessageId = createMessageId();
       const summaryMessageContent = buildCompactSummaryMessage(persistedSummary, {
         suppressFollowup: true,
+        ...engineAutoCompact === undefined ? {} : { continuationProse: engineAutoCompact.summaryUserMessage },
       });
       // Continue 没有对应 Session message；无 store 的统计也不能把它计入保留记录。
       const recordablePreservedEntries = filterOutputTokenContinuationEntries(preservedEntries);

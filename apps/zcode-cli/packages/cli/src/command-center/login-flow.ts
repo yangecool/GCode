@@ -11,6 +11,21 @@ export function buildLoginSelection(locale?: string): TuiSelection {
     help: copy.help,
     items: [
       {
+        command: "/login grok",
+        id: "grok-subscription",
+        keywords: ["grok", "xai", "oauth", "subscription"],
+        pending: {
+          cancelStatus: copy.pending.cancelStatus,
+          help: copy.pending.help,
+          primary: "Waiting for Grok authorization",
+          secondary:
+            "Complete sign-in in your browser. I will continue when authorization finishes.",
+          status: copy.pending.status,
+        },
+        primary: "Grok Subscription (G Code)",
+        secondary: "Open browser device login for the Grok coding subscription.",
+      },
+      {
         command: "/login zai-coding-plan",
         id: "zai-coding-plan",
         keywords: ["zai", "oauth", "coding", "plan"],

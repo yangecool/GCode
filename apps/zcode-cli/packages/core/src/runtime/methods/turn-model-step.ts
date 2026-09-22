@@ -471,6 +471,9 @@ async function runModelBackedTurnStepImpl(
   const rawFinishReason = readRawFinishReason(result.providerMetadata);
   // Automation create-limit 已经接管当前响应的终止语义；若在清空
   // provider tool calls 后仍重新解释 length/context reason，纯文本终态会再续跑 3 次。
+  // 引擎方言（Grok）续写：预算与 steer 文案按执行模型解析（原版
+  // length_salvage 预算 2 + 逐字 reminder）；缺省 ZCode 预算 3 与通用文案。
+  const engineContinuation = this.resolveEnginePersona?.(state.model)?.outputTokenContinuation;
   const outputTokenContinuation = localTerminalResponse
     ? "none"
     : classifyOutputTokenContinuation({
@@ -478,6 +481,7 @@ async function runModelBackedTurnStepImpl(
         finishReason: result.finishReason,
         rawFinishReason,
         toolCallCount: providerToolCallCount,
+        ...engineContinuation === undefined ? {} : { maxContinuations: engineContinuation.maxContinuations },
       });
   this.logger?.info("Model response diagnostics", {
     ...traceContextToLogContext(modelTraceContext),
@@ -658,7 +662,10 @@ async function runModelBackedTurnStepImpl(
     });
     if (assistantCommitted) recordModelHistoryRound(state);
     if (outputTokenContinuation === "continue") {
-      appendOutputTokenContinuation(state.turnRequestState);
+      appendOutputTokenContinuation(
+        state.turnRequestState,
+        engineContinuation?.prompt,
+      );
       state.reactiveCompactAttemptedInCurrentModelStep = false;
       state.turnMachine = new TurnMachineImpl(state.turnMachine.aggregateResults());
       return "output_continuation";

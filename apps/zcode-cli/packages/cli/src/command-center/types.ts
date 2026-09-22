@@ -308,6 +308,8 @@ export type CommandCenterDeps = {
   loginBigmodel?: (
     options?: CommandCenterBigmodelLoginOptions,
   ) => Promise<CommandCenterBigmodelLoginResult>;
+  /** G Code：Grok 订阅设备流登录（浏览器跳转）。 */
+  loginGrok?: (options?: CommandCenterGrokLoginOptions) => Promise<CommandCenterGrokLoginResult>;
   configureApiKey?: (options: CommandCenterApiKeyOptions) => Promise<CommandCenterApiKeyResult>;
   loadCustomCommand?: (name: string) => Promise<CommandCenterCustomCommandContent>;
   newApp?: () => Promise<CommandCenterApp>;
@@ -322,3 +324,14 @@ export type CommandCenterDeps = {
   setLocale?: (locale: UiLocale) => Promise<CommandCenterLocaleResult> | CommandCenterLocaleResult;
   setMode?: (mode: SwitchableCommandCenterMode) => Promise<CommandCenterMode> | CommandCenterMode;
 };
+
+export interface CommandCenterGrokLoginOptions {
+  abortSignal?: AbortSignal;
+}
+
+export interface CommandCenterGrokLoginResult {
+  status: "complete" | "error" | "expired";
+  verificationUrl: string;
+  userEmail?: string;
+  message: string;
+}

@@ -29,12 +29,15 @@ export function classifyOutputTokenContinuation(input: {
   rawFinishReason: string | undefined;
   toolCallCount: number;
   continuationCount: number;
+  /** 引擎方言（Grok）预算；缺省 ZCode 预算 3。 */
+  maxContinuations?: number;
 }): OutputTokenContinuationDecision {
   if (input.toolCallCount > 0) return "none";
   if (!isOutputTokenLimitFinishReason(input.finishReason, input.rawFinishReason)) {
     return "none";
   }
-  return input.continuationCount < MAX_OUTPUT_TOKEN_CONTINUATIONS ? "continue" : "exhausted";
+  const budget = input.maxContinuations ?? MAX_OUTPUT_TOKEN_CONTINUATIONS;
+  return input.continuationCount < budget ? "continue" : "exhausted";
 }
 
 export function isOutputTokenLimitFinishReason(
@@ -56,9 +59,9 @@ export function isOutputTokenLimitFinishReason(
   return finishReason === "length" || OUTPUT_LIMIT_RAW_REASONS.has(rawFinishReason ?? "");
 }
 
-function createOutputTokenContinuationEntry(): RuntimeMessageEntry {
+function createOutputTokenContinuationEntry(prompt: string = OUTPUT_TOKEN_CONTINUE_PROMPT): RuntimeMessageEntry {
   return {
-    ...createRuntimeUserEntry(OUTPUT_TOKEN_CONTINUE_PROMPT),
+    ...createRuntimeUserEntry(prompt),
     queryScope: "output_token_continuation",
   };
 }
@@ -136,8 +139,11 @@ export function hasAssistantReasoningContent(
   return reasoning.text.length > 0 || Object.keys(reasoning.providerOptions ?? {}).length > 0;
 }
 
-export function appendOutputTokenContinuation(state: TurnRequestState): void {
-  appendTurnRequestEntries(state, [createOutputTokenContinuationEntry()]);
+export function appendOutputTokenContinuation(
+  state: TurnRequestState,
+  prompt?: string,
+): void {
+  appendTurnRequestEntries(state, [createOutputTokenContinuationEntry(prompt)]);
   state.outputTokenContinuationCount += 1;
 }
 

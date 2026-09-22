@@ -25,6 +25,8 @@ import { bashToolEntry, createBashToolEntry } from "./bash.js";
 import type { BashTimeoutPolicy } from "../bash-timeout-policy.js";
 import { createJsToolEntry, jsToolEntry } from "./node-repl.js";
 import { globToolEntry } from "./glob.js";
+import { memoryGetToolEntry, memorySearchToolEntry } from "./grok-memory.js";
+import { hashlineEditToolEntry } from "./grok-hashline-edit.js";
 import { grepToolEntry } from "./grep.js";
 import { webFetchToolEntry } from "./webfetch.js";
 import { webSearchToolEntry } from "./websearch.js";
@@ -104,6 +106,12 @@ export const builtInTools: ToolEntry[] = [
   escalateToolEntry,
   taskOutputToolEntry,
   taskStopToolEntry,
+  // G Code：Grok memory-v2 工具面（隔离存储，只读）。存储惰性建目录，
+  // 未写入过的 workspace 零成本；HashlineEdit 是 Grok 引擎方言的编辑工具，
+  // 模型可见性在 getTools 按引擎 persona 门控（非 grok 引擎不出现）。
+  memorySearchToolEntry,
+  memoryGetToolEntry,
+  hashlineEditToolEntry,
   readSessionContextToolEntry,
   agentToolEntry,
   taskToolEntry,

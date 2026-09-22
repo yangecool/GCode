@@ -60,6 +60,7 @@ interface CreateWorkflowFacadeDeps {
   mcpPort?: McpPort;
   /** 父会话的 model factory（与 script-workflow-child-runtime.ts 同一约定）。 */
   modelFactory: NonNullable<AgentRuntimeDeps["modelFactory"]>;
+  resolveEnginePersona?: AgentRuntimeDeps["resolveEnginePersona"];
   permissionService: PermissionService;
   prepareUserExecutionBoundary: PrepareUserExecutionBoundary;
   runtime: AgentRuntime;
@@ -339,6 +340,7 @@ function createWorkflowChildRuntime(
       mcpPort: deps.mcpPort,
       eventSink: deps.eventSink,
       modelFactory: deps.modelFactory,
+      resolveEnginePersona: deps.resolveEnginePersona,
       resolveEffectiveModelSelection: deps.appOptions.resolveEffectiveModelSelection,
       // 对外交互端口由父 runtime 派生（permissionBroker + providerRuntimeHeadersPort）：
       // 子会话不是协议客户端认识的身份，直接透传 appOptions 的端口会让反向请求发到一个

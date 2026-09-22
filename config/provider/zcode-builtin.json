@@ -2518,7 +2518,8 @@
           "supportsJsonSchemaOutput": false,
           "supportsNativeWebSearch": false,
           "supportsMidConversationSystem": false,
-          "requiresMfjsToolSchema": false
+          "requiresMfjsToolSchema": false,
+          "autoCompactThresholdPercent": 80
         },
         "optionSpecs": {
           "maxOutputTokens": { "max": 32000 },
@@ -2548,7 +2549,8 @@
           "supportsJsonSchemaOutput": false,
           "supportsNativeWebSearch": false,
           "supportsMidConversationSystem": false,
-          "requiresMfjsToolSchema": false
+          "requiresMfjsToolSchema": false,
+          "autoCompactThresholdPercent": 80
         },
         "optionSpecs": {
           "maxOutputTokens": { "max": 32000 },

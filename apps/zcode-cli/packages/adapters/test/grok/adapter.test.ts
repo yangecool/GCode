@@ -444,3 +444,30 @@ test('cross-provider history falls back to summary replay', async () => {
     await server.close()
   }
 })
+
+test('subscription mode sends device-flow bearer with grok-build identity headers', async () => {
+  let bearer: string | undefined
+  let tokenAuth: string | undefined
+  const server = await startScripted([
+    (req, res) => {
+      bearer = req.headers['authorization']
+      tokenAuth = req.headers['x-xai-token-auth'] as string | undefined
+      sse(res, COMPLETED)
+    },
+  ])
+  try {
+    const result = await executeGrokRequest(baseConfig(server, {
+      apiKey: 'should-not-be-sent',
+      authMode: 'grok-subscription',
+      resolveBearer: async () => 'device-flow-token',
+      agentId: 'agent-123',
+    }), { messages: HISTORY })
+    assert.equal(result.events.at(-1)?.type, 'finish')
+    assert.equal(bearer, 'Bearer device-flow-token')
+    assert.equal(tokenAuth, 'xai-grok-cli')
+    const capturedAgent = server.captured[0]?.headers['x-grok-agent-id']
+    assert.equal(capturedAgent, 'agent-123')
+  } finally {
+    await server.close()
+  }
+})

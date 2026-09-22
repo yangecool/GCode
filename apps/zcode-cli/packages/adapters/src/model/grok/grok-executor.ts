@@ -36,6 +36,8 @@ export interface GrokModelRequestCore {
   readonly tools?: readonly GrokToolContractSource[]
   readonly reasoningLevel?: string
   readonly maxOutputTokens?: number
+  /** H13 粘性路由 cache key（会话槽；辅助调用缺省）。 */
+  readonly promptCacheKey?: string
   readonly abortSignal?: AbortSignal
 }
 
@@ -128,6 +130,7 @@ function adapterConfig(
     ...base,
     reasoningEffort: grokRequestEffort(request.reasoningLevel, binding),
     ...request.maxOutputTokens === undefined ? {} : { maxOutputTokens: request.maxOutputTokens },
+    ...request.promptCacheKey === undefined ? {} : { promptCacheKey: request.promptCacheKey },
     ...binding.reasoningSummary === undefined ? {} : { reasoningSummary: binding.reasoningSummary },
     ...binding.temperature === undefined ? {} : { temperature: binding.temperature },
     ...binding.maxRetries === undefined ? {} : { maxRetries: binding.maxRetries },

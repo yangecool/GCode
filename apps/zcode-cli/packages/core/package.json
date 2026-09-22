@@ -28,7 +28,8 @@
     "clean": "node ../../scripts/clean-dist.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src --no-ignore",
-    "lint:fix": "oxlint --fix src --no-ignore"
+    "lint:fix": "oxlint --fix src --no-ignore",
+    "test": "node --experimental-transform-types --import ./test/grok-register.mjs --test \"test/**/*.test.ts\""
   },
   "dependencies": {
     "@zcode/contracts": "workspace:*",
@@ -42,7 +43,8 @@
     "marked": "16.4.2",
     "meriyah": "^7.1.1",
     "unbash": "4.0.1",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "@zcode/adapters": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.0.0"

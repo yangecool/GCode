@@ -733,7 +733,8 @@ function publicFlow(flow: PendingFlow): GrokDeviceStart {
 /** 浏览器打开器（可注入测试；缺省跨平台系统命令，detach 不阻塞宿主）。 */
 export type BrowserLauncher = (url: string) => Promise<void>
 
-async function systemBrowserLauncher(url: string): Promise<void> {
+/** 系统浏览器拉起（open / cmd start / xdg-open，detached）。 */
+export async function systemBrowserLauncher(url: string): Promise<void> {
   const { spawn } = await import('node:child_process')
   const command = process.platform === 'darwin'
     ? 'open'

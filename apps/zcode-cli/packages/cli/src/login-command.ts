@@ -13,8 +13,8 @@ export async function runLoginCommand(
 ): Promise<number> {
   try {
     const providerId = args[0] ?? "zai";
-    if (args.length > 1 || (providerId !== "zai" && providerId !== "bigmodel")) {
-      throw new Error("Usage: zcode login [zai|bigmodel] [--no-browser]");
+    if (args.length > 1 || (providerId !== "zai" && providerId !== "bigmodel" && providerId !== "grok")) {
+      throw new Error("Usage: zcode login [zai|bigmodel|grok] [--no-browser]");
     }
     const env = deps.env ?? process.env;
     const workingDirectory = (deps.cwd ?? process.cwd)();
@@ -27,6 +27,30 @@ export async function runLoginCommand(
       throw new Error(`Failed to load environment file: ${dotenvResult.path}`, {
         cause: dotenvResult.error,
       });
+    }
+
+    // G Code：Grok 订阅设备流（浏览器跳转；--no-browser 时仅打印链接）。
+    if (providerId === "grok") {
+      const { loginGrokCli } = await loadBootstrapModule();
+      const result = await loginGrokCli({
+        env,
+        ...(noBrowser ? { launch: async () => { /* --no-browser：不拉浏览器 */ } } : {}),
+      });
+      if (options.json) {
+        ctx.stdout.write(
+          formatJson({
+            status: result.status,
+            ...(result.userEmail ? { email: result.userEmail } : {}),
+            message: result.message,
+          }),
+        );
+      } else {
+        if (noBrowser || result.status !== "complete") {
+          ctx.stdout.write(`Fallback URL: ${result.verificationUrl}\n`);
+        }
+        ctx.stdout.write(`${result.message}\n`);
+      }
+      return result.status === "complete" ? 0 : 1;
     }
 
     const login = deps.loginZCodeCli ?? (await loadBootstrapModule()).loginZCodeCli;

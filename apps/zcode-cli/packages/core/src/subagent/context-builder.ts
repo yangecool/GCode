@@ -19,6 +19,8 @@ export interface SubagentContextBuilderConfig {
   agentPrompt: string;
   currentDate?: string;
   envInfo: EnvInfo;
+  /** 引擎方言（Grok）：替换子代理 cli_prefix 身份段。 */
+  enginePersona?: ContextBuilderConfig["enginePersona"];
   model?: Model;
   skillMetadataBudget?: number;
   skills?: ContextBuilderConfig["skills"];
@@ -104,7 +106,21 @@ export function createSubagentContextBuilder(
 }
 
 function buildSubagentContextSections(config: SubagentContextBuilderConfig): ContextSection[] {
-  const sections: ContextSection[] = [buildCliPrefixSection()];
+  const persona = config.enginePersona;
+  const sections: ContextSection[] = [
+    persona === undefined
+      ? buildCliPrefixSection()
+      : {
+          name: "Engine Persona Prefix",
+          source: "engine_persona",
+          injectionTarget: "system",
+          cacheHint: "stable",
+          chars: persona.subagentCliPrefix.length,
+          tokens: estimateTokens(persona.subagentCliPrefix),
+          content: persona.subagentCliPrefix,
+          preview: persona.subagentCliPrefix.slice(0, 100),
+        },
+  ];
   const agentPrompt = config.agentPrompt.trimEnd();
   if (agentPrompt) {
     sections.push(

@@ -363,6 +363,13 @@ export interface GrokReplayState {
   version: 1
   blocks: GrokReplayBlock[]
   responseId?: string
+  /**
+   * H12 预留桩：服务端会话状态开关。当前唯一合法值 `{ mode: "off" }` 且与
+   * 缺席等价——默认保持 stateless full-history replay（缓存与账单安全）；
+   * 4.7+ 若开放 server-side state，经此字段版本化启用，启用前必须过施工图
+   * §7 的账单验收。读侧（readGrokReplayState）对未知值 fail-loud。
+   */
+  serverState?: { mode: 'off' }
 }
 
 function invalid(message: string): never {

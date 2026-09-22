@@ -82,9 +82,22 @@ export function getAutoCompactOutputReserveTokens(config: AutoCompactPolicyConfi
 }
 
 export function getAutoCompactThreshold(config: AutoCompactPolicyConfig = {}): number {
+  // 引擎方言（Grok）阈值语义：占**完整** contextWindow 的百分比（原版
+  // `context_window * percent / 100`），不做 output 预留/缓冲扣减——预留与
+  // 缓冲是 ZCode 机制的内部补偿，百分比口径下由引擎侧自定。
+  const percentOverride = percentValue(config.thresholdPercentOverride);
+  if (percentOverride !== undefined) {
+    const contextWindow = positiveInt(config.contextWindow) ?? DEFAULT_COMPACT_CONTEXT_WINDOW;
+    return Math.floor((contextWindow * percentOverride) / 100);
+  }
   const effectiveContextWindow = getEffectiveContextWindowSize(config);
   const buffer = positiveInt(config.bufferTokens) ?? AUTOCOMPACT_BUFFER_TOKENS;
   return Math.max(0, effectiveContextWindow - buffer);
+}
+
+function percentValue(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value) || value <= 0 || value > 100) return undefined;
+  return value;
 }
 
 export function shouldAutoCompact(input: {
@@ -98,7 +111,7 @@ export function shouldAutoCompact(input: {
   const effectiveContextWindow = getEffectiveContextWindowSize(config);
   const outputReserveTokens = Math.min(getAutoCompactOutputReserveTokens(config), contextWindow);
   const threshold = getAutoCompactThreshold(config);
-  const thresholdPercent = DEFAULT_AUTOCOMPACT_THRESHOLD_PERCENT;
+  const thresholdPercent = percentValue(config.thresholdPercentOverride) ?? DEFAULT_AUTOCOMPACT_THRESHOLD_PERCENT;
   const estimatedTokenCount = estimateMessageTokens(input.messages);
   const tokenCount = input.tokenOverride?.tokenCount ?? estimatedTokenCount;
   const tokenSource = input.tokenOverride?.source ?? "estimate";

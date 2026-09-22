@@ -75,6 +75,8 @@ export const completeModelPropertiesDataSchema = z
     supportsJsonSchemaOutput: z.boolean(),
     supportsNativeWebSearch: z.boolean(),
     supportsMidConversationSystem: z.boolean(),
+    /** 引擎方言（Grok H10）：自动压缩阈值占完整 contextWindow 的百分比；缺席走机制默认。 */
+    autoCompactThresholdPercent: z.number().int().min(1).max(100).optional(),
   })
   .strict();
 export const modelPropertiesDataSchema = z

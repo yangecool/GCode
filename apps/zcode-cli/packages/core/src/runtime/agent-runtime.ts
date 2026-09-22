@@ -149,6 +149,7 @@ export class AgentRuntime {
   private hookRunner?: HookRunner;
   private workspaceHookAdmission?: WorkspaceHookRuntimeAdmissionPort;
   private modelFactory: AgentRuntimeDeps["modelFactory"];
+  resolveEnginePersona?: AgentRuntimeDeps["resolveEnginePersona"];
   private modelIoDir?: string;
   private providerRuntimeHeadersPort?: AgentRuntimeDeps["providerRuntimeHeadersPort"];
   private browserControlPort?: AgentRuntimeDeps["browserControlPort"];
@@ -254,6 +255,7 @@ export class AgentRuntime {
       });
     this.eventReducer = new EventReducer();
     this.eventStore = deps.eventStore;
+    this.resolveEnginePersona = deps.resolveEnginePersona;
     this.sessionStore = deps.sessionStore;
     this.rootTraceContext = deps.traceContext ?? createRootTraceContext({ sessionId });
     this.appVersion = deps.appVersion ?? "0.0.0";

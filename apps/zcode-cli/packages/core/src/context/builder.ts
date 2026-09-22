@@ -13,7 +13,7 @@ import type {
 import type { ToolRegistry } from "../tool/registry.js";
 import { estimateTokens } from "./utils.js";
 import { buildCliPrefixSection } from "./sections/cli-prefix.js";
-import { buildIdentitySection } from "./sections/identity.js";
+import { buildIdentitySection , buildSecurityNotice, buildHarnessBlock } from "./sections/identity.js";
 import { buildWorkflowActorIdentitySection } from "./sections/workflow-actor.js";
 import { buildEnvInfoSection, buildGitSystemContextSection } from "./sections/env-info.js";
 import { buildSkillsSection } from "./sections/skills.js";
@@ -95,13 +95,25 @@ export class ContextBuilder {
         "ContextBuilder: workflowActor and customSystemPrompt are mutually exclusive",
       );
     }
+    // 引擎方言是宿主按 provider 事实注入的身份替换，与用户显式覆盖同在只可能是
+    // 接线错误；大声失败而不是默默二选一。
+    const enginePersona = this.config.enginePersona;
+    if (enginePersona !== undefined && hasCustomSystemPrompt) {
+      throw new Error(
+        "ContextBuilder: enginePersona and customSystemPrompt are mutually exclusive",
+      );
+    }
     const isWorkflowActor = workflowActor !== undefined;
 
     // 1. CLI / product prefix. Keep this as the short leading identity block.
     // 「You are ZCode, an interactive coding agent」对一个
     // 只对脚本说话、可能连读文件工具都没有的子代理是错的身份，且走在正确身份段前面。
     if (!isWorkflowActor) {
-      sections.push(buildCliPrefixSection());
+      sections.push(
+        enginePersona === undefined
+          ? buildCliPrefixSection()
+          : buildEnginePersonaSection("Engine Persona Prefix", enginePersona.cliPrefix),
+      );
     }
 
     // 2. Stable agent behavior or custom prompt body
@@ -117,6 +129,15 @@ export class ContextBuilder {
       );
     } else if (workflowActor !== undefined) {
       sections.push(buildWorkflowActorIdentitySection(workflowActor));
+    } else if (enginePersona !== undefined) {
+      // 引擎主体替换 identity 文案；安全行与 harness 块是 ZCode 运行语义
+      // （权限模式、hook、并行调用），对任何引擎都成立，保留追加。
+      sections.push(
+        buildEnginePersonaSection(
+          "Engine Persona Identity",
+          `${enginePersona.identity}\n\n${buildSecurityNotice()}\n\n${buildHarnessBlock()}`,
+        ),
+      );
     } else {
       sections.push(buildIdentitySection(activeOutputStyle));
     }
@@ -369,4 +390,17 @@ function createSection(input: {
 
 export function createContextBuilder(config: ContextBuilderConfig): ContextBuilder {
   return new ContextBuilder(config);
+}
+
+function buildEnginePersonaSection(name: string, content: string): ContextSection {
+  return {
+    name,
+    source: "engine_persona",
+    injectionTarget: "system",
+    cacheHint: "stable",
+    chars: content.length,
+    tokens: estimateTokens(content),
+    content,
+    preview: content.slice(0, 100),
+  };
 }

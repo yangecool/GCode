@@ -108,12 +108,15 @@ When summarizing the conversation focus on typescript code changes and also reme
 When you are using compact - please focus on test output and code changes. Include file reads verbatim.
 </example>`;
 
-export function buildCompactPrompt(customInstructions: string | undefined): string {
+export function buildCompactPrompt(
+  customInstructions: string | undefined,
+  basePrompt: string = BASE_COMPACT_PROMPT,
+): string {
   const customInstructionBlock = customInstructions?.trim()
     ? `\n\nAdditional Instructions:\n${customInstructions}`
     : "";
 
-  return `${NO_TOOLS_PREAMBLE}${BASE_COMPACT_PROMPT}${customInstructionBlock}${NO_TOOLS_TRAILER}`;
+  return `${NO_TOOLS_PREAMBLE}${basePrompt}${customInstructionBlock}${NO_TOOLS_TRAILER}`;
 }
 
 export function formatCompactSummary(text: string | undefined): string {
@@ -137,9 +140,13 @@ export function buildCompactSummaryMessage(
     replStateCleared?: boolean;
     suppressFollowup?: boolean;
     transcriptPath?: string;
+    /** 引擎方言（Grok）置换后的续读引导文案；缺省 ZCode 原文。 */
+    continuationProse?: string;
   } = {},
 ): string {
-  let message = `This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+  const leadingProse = options.continuationProse
+    ?? "This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.";
+  let message = `${leadingProse}
 
 ${formatCompactSummary(summary)}`;
 

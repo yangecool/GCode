@@ -46,6 +46,26 @@
       "types": "./dist/model/index.d.ts",
       "import": "./dist/model/index.js"
     },
+    "./grok-session": {
+      "types": "./dist/grok/grok-session.d.ts",
+      "import": "./dist/grok/grok-session.js"
+    },
+    "./grok-memory": {
+      "types": "./dist/grok/grok-memory.d.ts",
+      "import": "./dist/grok/grok-memory.js"
+    },
+    "./grok-hashline": {
+      "types": "./dist/grok/grok-hashline.d.ts",
+      "import": "./dist/grok/grok-hashline.js"
+    },
+    "./grok-auth": {
+      "types": "./dist/grok/grok-auth.d.ts",
+      "import": "./dist/grok/grok-auth.js"
+    },
+    "./grok-discovery": {
+      "types": "./dist/grok/grok-discovery.d.ts",
+      "import": "./dist/grok/grok-discovery.js"
+    },
     "./logging": {
       "types": "./dist/logging/index.d.ts",
       "import": "./dist/logging/index.js"

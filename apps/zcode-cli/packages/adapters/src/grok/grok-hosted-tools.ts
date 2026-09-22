@@ -31,6 +31,12 @@ export interface GrokHostedToolsConfig {
     readonly fromDate?: string
     readonly toDate?: string
   }
+  /**
+   * H11 开放注册：封闭集之外的 wire 名 → 原始 wire entry。entries 由
+   * wire 层 hostedWireTool 校验（不支持的工具类型 fail-loud），策略字段
+   * （域/日期）只对封闭集内的 web_search/x_search 生效。
+   */
+  readonly extra?: Readonly<Record<string, Record<string, unknown>>>
 }
 
 export function resolveGrokHostedTools(
@@ -40,7 +46,10 @@ export function resolveGrokHostedTools(
   if (new Set(owned).size !== owned.length) {
     throw new Error('grok-hosted-tools: owned must not contain duplicates')
   }
-  const unknown = owned.filter(name => !(GROK_HOSTED_TOOL_NAMES as readonly string[]).includes(name))
+  const extraNames = Object.keys(config.extra ?? {})
+  const unknown = owned.filter(
+    name => !(GROK_HOSTED_TOOL_NAMES as readonly string[]).includes(name) && !extraNames.includes(name),
+  )
   if (unknown.length > 0) {
     throw new Error(`grok-hosted-tools: unknown hosted tool ${unknown.join(', ')}`)
   }
@@ -61,7 +70,7 @@ export function resolveGrokHostedTools(
   if ((fromDate !== undefined || toDate !== undefined) && !ownedSet.has('x_search')) {
     throw new Error('grok-hosted-tools: xSearch policy requires owned x_search')
   }
-  return owned.map((wireName): GrokHostedToolSpec => {
+  const closedSetEntries = owned.map((wireName): GrokHostedToolSpec => {
     if (wireName === 'web_search') {
       return {
         wireName,
@@ -85,6 +94,17 @@ export function resolveGrokHostedTools(
       },
     }
   })
+  // H11 开放注册项：wire 名不在封闭集 → 逐字转发登记的 entry（wire 层校验）。
+  const extraEntries: GrokHostedToolSpec[] = extraNames
+    .filter(name => !GROK_HOSTED_TOOL_NAMES.includes(name as never))
+    .map(wireName => {
+      const entry = config.extra?.[wireName]
+      if (entry === undefined) {
+        throw new Error(`grok-hosted-tools: extra hosted tool ${wireName} has no entry`)
+      }
+      return { wireName, entry: { ...entry } }
+    })
+  return [...closedSetEntries, ...extraEntries]
 }
 
 const MAX_WEB_SEARCH_DOMAINS = 5

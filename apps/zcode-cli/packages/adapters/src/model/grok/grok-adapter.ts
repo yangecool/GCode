@@ -58,6 +58,15 @@ export interface GrokAdapterConfig {
   readonly model: string
   /** 当前路由的 provider id；同源历史消息凭它读取 replay 元数据。 */
   readonly providerId?: string
+  /**
+   * H3 订阅模式：走 grok-build 客户端身份头集 + OAuth bearer（loginViaBrowser
+   * 写入的设备流令牌）。缺省 api-key（Bearer apiKey）。
+   */
+  readonly authMode?: 'api-key' | 'grok-subscription'
+  /** 订阅模式 bearer 解析（attempt 级 await；可刷新）。 */
+  readonly resolveBearer?: () => Promise<string>
+  /** 订阅模式稳定 agent id（x-grok-agent-id 头；订阅流量专用）。 */
+  readonly agentId?: string
   /** 追加请求头（不得覆盖协议身份头）。 */
   readonly headers?: Readonly<Record<string, string>>
   readonly reasoningEffort?: string
@@ -227,19 +236,31 @@ export async function executeGrokRequest(
   stream: GrokStreamCallbacks = {},
 ): Promise<GrokExecutionResult> {
   const transport = config.transport ?? createGrokHttpTransport()
-  const url = new URL(`${config.baseURL ?? 'https://api.x.ai/v1'}/responses`)
+  const defaultBase = config.authMode === 'grok-subscription'
+    ? 'https://cli-chat-proxy.grok.com/v1'
+    : 'https://api.x.ai/v1'
+  const url = new URL(`${config.baseURL ?? defaultBase}/responses`)
   const maxAttempts = 1 + (config.maxRetries ?? DEFAULT_MAX_RETRIES)
   const doomBudget = config.doomLoopMaxResamples ?? DEFAULT_DOOM_RESAMPLES
   const idleTimeout = config.streamIdleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS
   // grok-shell 1.0.38（2026-09 grok-build 4247f661）；随上游发布窗口更新。
   const clientVersion = config.clientVersion ?? '1.0.38'
-  const headers: Record<string, string> = {
-    authorization: `Bearer ${config.apiKey}`,
+  const subscription = config.authMode === 'grok-subscription'
+  // 订阅模式身份头集（grok-build 客户端）：identity + agent id；请求头在
+  // attempt 级组装（bearer 可刷新）。
+  const staticHeaders: Record<string, string> = {
     'content-type': 'application/json',
     accept: 'text/event-stream',
     'user-agent': userAgent(clientVersion),
     'x-grok-client-version': clientVersion,
     'x-grok-client-identifier': 'grok-shell',
+    ...subscription
+      ? {
+        'x-xai-token-auth': 'xai-grok-cli',
+        'x-authenticateresponse': 'authenticate-response',
+        ...(config.agentId === undefined ? {} : { 'x-grok-agent-id': config.agentId }),
+      }
+      : {},
     ...config.headers,
   }
   const input = serializeGrokMessages(request.messages, {
@@ -278,9 +299,15 @@ export async function executeGrokRequest(
     const collected: GrokStreamEvent[] = []
     let terminal: GrokStreamEvent | undefined
     try {
+      const bearer = subscription
+        ? await config.resolveBearer?.()
+        : undefined
       const response = await fetchImpl(url, {
         method: 'POST',
-        headers,
+        headers: {
+          ...staticHeaders,
+          authorization: `Bearer ${bearer ?? config.apiKey}`,
+        },
         body: JSON.stringify(body),
         signal: attemptController.signal,
       })

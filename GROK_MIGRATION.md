@@ -352,3 +352,50 @@ ZCode 已有 plan-mode 工具与 `EnterPlanMode/ExitPlanMode` 语义。对齐点
 - clientVersion 默认 `1.0.35 → 1.0.38`（adapter + auth + 测试）。
 
 **M8 门检**：H8 ✓（本批演示）；H7 接缝在位（输入项注册表 v1 + fail/passthrough 策略）；H10 修正（4.7 未涨上下文）；H11 未触发。遗留接线债务不变（/models 发现、目录级 compaction 旗标、x-compaction-at 头）。
+
+## W 批会话接线 + M6/M7/M8 收口（2026-09-22，「所有的 M 和 H 全部做完」）
+
+**架构原则**：core 保持引擎无关——新增 `AgentRuntimeDeps.resolveEnginePersona(model)` 单一钩子
+（同步、无 I/O），bootstrap 按 provider api.type 组装 `EnginePersonaOverride` 纯数据
+（adapters `grok-session.ts` glue）；persona/压缩/续写/工具门控全部消费同一钩子。ZCode 成熟
+机制（四档权限、compact 机器、output-token continuation、Edit/Write）保留骨架，grok 引擎
+只替换方言内容。
+
+**落地清单**：
+- **B1-B2 persona（M2 收口）**：ContextBuilder 在 `enginePersona` 在场时替换 cli_prefix +
+  identity 两段（`engine_persona` 新 source，cache break 可见），保留安全行 + harness 块 +
+  全部动态段（env/skills/AGENTS.md/memory）；子代理 builder 同构（`subagentCliPrefix`）。
+  钩子随 model step 重投影（模型切换自然换身份）；workflow child/actor runtime 结构性继承。
+- **B3 压缩（M4 收口）**：`thresholdPercentOverride`（沉睡字段）激活——grok 语义 = 完整
+  contextWindow × 百分比（Rust 口径）；H10 目录字段 `autoCompactThresholdPercent` 贯通
+  shared schema → provider overlay → 目录规则（grok-4.6/4.7 = 80，缺省全局 85）。摘要提示
+  词与置换后续读文案走 `persona.autoCompact`（原版 9 段摘要 + full-replace 语义）。
+- **B4 length salvage（M4 收口）**：续写预算与 steer 文案按 persona 注入（grok = 原版预算 2
+  + `LENGTH_CONTINUE_REMINDER_BODY` 逐字）；ZCode 预算 3 + 通用文案为缺省。
+- **B5 工具（M4/M5 收口）**：contracts 新增 memory_search/memory_get/hashline-edit 三契约；
+  core handler 包装 adapters 存储（安全边界在已测的 grok-memory/grok-hashline）；注册进
+  builtInTools；HashlineEdit 按 persona 门控（非 grok 引擎不可见）。core 获得 node:test 基建
+  （--experimental-transform-types + 相对说明符 hook，与 adapters 同模式）。
+- **B6 hosted + cache（M3/H11/H13 收口）**：`GCODE_GROK_HOSTED_TOOLS` env JSON → runner →
+  `GrokAdapterConfig.hostedTools`；H11 开放注册 = `extra` wire 名表（wire 层校验 fail-loud）；
+  H13 = `grokPromptCacheKey(sessionId)`（main/subagent 共享会话槽，辅助调用不复用）经
+  invocation context 注入。
+- **B7 auth（H3 收口）**：引擎 `authMode: 'grok-subscription'`（cli-chat-proxy.grok.com +
+  grok-build 身份头集 + attempt 级 bearer 解析 + agent id）；runner `GCODE_GROK_SUBSCRIPTION=1`
+  启用（令牌 = GrokAuthService 设备流存储，AUTH_MISSING → ModelRequestAuthMissing）；
+  `/login grok`（TUI 选择项 + 命令分支 + usage）与 `zcode login grok`（--no-browser 支持）
+  走 bootstrap `grok-login.ts`（loginViaBrowser + 系统浏览器，失败回退 URL 上屏）。
+- **B8（H9/H12/H1 收口）**：`fetchGrokModelIds`（GET /models，fail-loud；生产路径 = 目录
+  CDN 刷新，模块供 grok-account 集成）；H12 `GrokReplayState.serverState` 版本化桩（唯一
+  合法值 `{mode:"off"}`，读侧未知值 fail-loud）；H1 `GCODE_SINGLE_ENGINE=1` 门（modelCatalogPort
+  只列 grok-responses provider；GUI picker 不受影响，产品默认收敛待用户决策）。
+- **M7 收尾**：`third-party/`（Apache-2.0 全文 + NOTICE，覆盖全部移植面与上游 rev）。
+
+**验证**：adapters 98/98、core 3/3；contracts/shared/provider/adapters/core/bootstrap/cli
+typecheck 零错误；全仓 `pnpm -r build` exit=0。已知残留（诚实账）：lint 全仓基线红（HEAD
+旧账，本批未新增违规未清旧账）；真实 API smoke 未做（无凭据）；`/models` 发现未接 CLI 表面
+（模块+测试就绪）；单引擎门只盖工具层目录那张脸。
+
+**M/H 终态**：M0-M8 全部落地（M8 门检 + 4.7 上线见 U1）；H1 门就绪（默认关）、H2-H8 已验证、
+H9 模块就绪待集成、H10 已验证并修正、H11 已落地、H12 桩就绪、H13 已落地。逐条状态见
+`G_CODE_HYPOTHESES.md` F 节。

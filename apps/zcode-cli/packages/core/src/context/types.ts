@@ -47,7 +47,8 @@ export type ContextSource =
   | "session_guidance" // 当前可用内置能力指导
   | "output_style" // 输出风格
   | "context_management" // 长上下文管理提示
-  | "desktop_context"; // ZCode Desktop 渲染与交互协议
+  | "desktop_context" // ZCode Desktop 渲染与交互协议
+  | "engine_persona"; // 引擎方言身份（Grok）：cli_prefix + identity 的引擎侧替换
 
 export type ContextInjectionTarget = "system" | "meta_user";
 
@@ -104,6 +105,13 @@ export interface ContextBuilderConfig {
   envInfo: EnvInfo;
   /** 当前步骤的执行对象，不进入 Context Source 或持久化环境快照。 */
   model?: Model;
+  /**
+   * 引擎方言身份（Grok）：在场时替换 cli_prefix 与 identity 两段的文案，
+   * 其余动态段（env/skills/用户指令/memory）保持 ZCode 体系。由宿主按
+   * provider api 类型解析并注入；与 customSystemPrompt 互斥（前者是引擎
+   * 事实，后者是用户覆盖，同在只可能是接线错误）。
+   */
+  enginePersona?: EnginePersonaOverride;
   presentationSurface?: PresentationSurface;
   currentDate?: string;
   userInstructions?: ResolvedUserInstructions;
@@ -125,6 +133,32 @@ export interface ContextBuilderConfig {
   outputStyle?: OutputStylePromptConfig;
   compact?: AutoCompactPolicyConfig;
   guidanceToolNames?: readonly string[];
+}
+
+/**
+ * 引擎方言覆盖：宿主（bootstrap）按执行 Model 的 provider api 类型组装。
+ * core 只消费数据，不持有任何引擎知识；压缩/续写方言缺省走 ZCode 机制。
+ */
+export interface EnginePersonaOverride {
+  /** 引擎标识（"grok"）；core 侧工具门控与压缩分支按它分派。 */
+  readonly kind: string;
+  /** 替换 cli_prefix 段的身份首段。 */
+  readonly cliPrefix: string;
+  /** 替换 identity 段的引擎主体（安全行与 harness 块仍由 core 追加）。 */
+  readonly identity: string;
+  /** 子代理 cli_prefix 替换文案。 */
+  readonly subagentCliPrefix: string;
+  /** 压缩方言：阈值百分比（占上下文窗口）+ 摘要提示词 + 置换后续读用户消息。 */
+  readonly autoCompact?: {
+    readonly thresholdPercent: number;
+    readonly summaryPrompt: string;
+    readonly summaryUserMessage: string;
+  };
+  /** 输出截断续写方言：steer 提示词 + 最大续写次数。 */
+  readonly outputTokenContinuation?: {
+    readonly prompt: string;
+    readonly maxContinuations: number;
+  };
 }
 
 /**
